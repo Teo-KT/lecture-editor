@@ -1,0 +1,2887 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTML Visual Editor v3</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#18181B;--bg2:#27272A;--bg3:#3F3F46;--bg4:#52525B;
+  --tx:#FAFAFA;--tx2:#A1A1AA;--tx3:#71717A;
+  --bl:#3B82F6;--bl2:#2563EB;--gn:#22C55E;--rs:#EF4444;
+  --am:#F59E0B;--pr:#A855F7;
+  --panel:280px;--topbar:48px;--toolbar:42px;
+}
+body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--tx);overflow:hidden;height:100vh;}
+
+/* ===== TOP BAR ===== */
+.topbar{
+  height:var(--topbar);background:var(--bg2);border-bottom:1px solid var(--bg3);
+  display:flex;align-items:center;padding:0 16px;gap:12px;z-index:100;
+}
+.topbar .logo{font-weight:700;font-size:14px;color:var(--tx);margin-right:8px;white-space:nowrap;}
+.topbar .logo span{color:var(--bl);font-weight:400;}
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 14px;border-radius:6px;border:1px solid var(--bg3);
+  background:var(--bg2);color:var(--tx2);font-size:12px;font-weight:500;
+  cursor:pointer;transition:all 0.15s;white-space:nowrap;
+  font-family:inherit;
+}
+.btn:hover{background:var(--bg3);color:var(--tx);}
+.btn-primary{background:var(--bl);border-color:var(--bl);color:#fff;}
+.btn-primary:hover{background:var(--bl2);}
+.btn-success{background:var(--gn);border-color:var(--gn);color:#fff;}
+.btn-success:hover{opacity:0.9;}
+.btn-warn{background:var(--am);border-color:var(--am);color:#000;}
+.btn-warn:hover{opacity:0.9;}
+.sep{width:1px;height:24px;background:var(--bg3);}
+.topbar .file-name{font-size:12px;color:var(--tx3);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.topbar .spacer{flex:1;}
+.topbar .zoom-ctrl{display:flex;align-items:center;gap:4px;}
+.topbar .zoom-ctrl span{font-size:11px;color:var(--tx3);min-width:40px;text-align:center;}
+
+/* ===== TOOLBAR ===== */
+.toolbar{
+  height:var(--toolbar);background:var(--bg2);border-bottom:1px solid var(--bg3);
+  display:flex;align-items:center;padding:0 16px;gap:6px;overflow-x:auto;
+}
+.tool-group{display:flex;align-items:center;gap:3px;padding:0 6px;border-right:1px solid var(--bg3);}
+.tool-group:last-child{border-right:none;}
+.tbtn{
+  width:32px;height:30px;border-radius:5px;border:none;
+  background:transparent;color:var(--tx2);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:600;transition:all 0.12s;
+}
+.tbtn:hover{background:var(--bg3);color:var(--tx);}
+.tbtn.active{background:var(--bl);color:#fff;}
+.tbtn svg{width:16px;height:16px;}
+.color-input{
+  width:28px;height:28px;border:2px solid var(--bg3);border-radius:5px;
+  cursor:pointer;padding:0;background:none;
+}
+.color-input::-webkit-color-swatch-wrapper{padding:1px;}
+.color-input::-webkit-color-swatch{border:none;border-radius:3px;}
+.tool-select{
+  height:28px;background:var(--bg3);border:1px solid var(--bg4);border-radius:5px;
+  color:var(--tx);font-size:11px;padding:0 6px;cursor:pointer;font-family:inherit;
+}
+.tool-label{font-size:10px;color:var(--tx3);margin-right:2px;white-space:nowrap;}
+
+/* ===== MAIN LAYOUT ===== */
+.main{
+  display:flex;
+  height:calc(100vh - var(--topbar) - var(--toolbar));
+}
+
+/* ===== CANVAS (iframe area) ===== */
+.canvas-wrap{
+  flex:1;background:#09090B;overflow:auto;
+  display:flex;align-items:flex-start;justify-content:center;
+  padding:24px;
+}
+.canvas-frame{
+  background:#fff;box-shadow:0 4px 40px rgba(0,0,0,0.5);
+  transform-origin:top center;transition:transform 0.2s;
+  position:relative;
+}
+.canvas-frame iframe{
+  border:none;width:100%;height:100%;display:block;
+}
+
+/* ===== RIGHT PANEL ===== */
+.panel{
+  width:var(--panel);background:var(--bg2);border-left:1px solid var(--bg3);
+  overflow-y:auto;flex-shrink:0;
+}
+.panel-section{padding:14px 16px;border-bottom:1px solid var(--bg3);}
+.panel-section h3{
+  font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;
+  letter-spacing:0.06em;margin-bottom:10px;
+}
+.prop-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.prop-label{font-size:11px;color:var(--tx2);min-width:60px;}
+.prop-input{
+  flex:1;height:28px;background:var(--bg3);border:1px solid var(--bg4);
+  border-radius:5px;color:var(--tx);padding:0 8px;font-size:12px;
+  font-family:inherit;
+}
+.prop-input:focus{outline:none;border-color:var(--bl);}
+.prop-row .color-input{flex-shrink:0;}
+.prop-textarea{
+  width:100%;min-height:60px;background:var(--bg3);border:1px solid var(--bg4);
+  border-radius:5px;color:var(--tx);padding:8px;font-size:12px;
+  font-family:inherit;resize:vertical;
+}
+.prop-textarea:focus{outline:none;border-color:var(--bl);}
+
+/* Element info */
+.el-info{
+  background:var(--bg3);border-radius:6px;padding:8px 10px;margin-bottom:10px;
+  font-family:'SF Mono','Consolas',monospace;font-size:11px;color:var(--am);
+  word-break:break-all;
+}
+
+/* History */
+.history-item{
+  font-size:11px;color:var(--tx2);padding:4px 0;
+  border-bottom:1px solid rgba(255,255,255,0.05);
+}
+.history-item:last-child{border:none;}
+
+/* Outline highlight */
+.editor-highlight{
+  outline:2px solid #3B82F6 !important;
+  outline-offset:2px !important;
+}
+.editor-hover{
+  outline:1px dashed #60A5FA !important;
+  outline-offset:1px !important;
+}
+.editor-dragging{
+  opacity:0.85 !important;
+  cursor:grabbing !important;
+  outline:2px solid #F59E0B !important;
+  outline-offset:2px !important;
+  box-shadow:0 8px 30px rgba(0,0,0,0.25) !important;
+  z-index:9999 !important;
+  position:relative !important;
+}
+
+/* Multi-select */
+.editor-multi{
+  outline:2px solid #A855F7 !important;
+  outline-offset:2px !important;
+  background:rgba(168,85,247,0.05) !important;
+}
+
+/* ===== TOGGLE PANEL ===== */
+.toggle-section{display:none;}
+.toggle-section.show{display:block;}
+.toggle-list{max-height:200px;overflow-y:auto;}
+.toggle-item{
+  display:flex;align-items:center;gap:8px;padding:6px 8px;
+  border-radius:5px;cursor:pointer;font-size:11px;color:var(--tx2);
+  transition:all 0.12s;margin-bottom:2px;
+}
+.toggle-item:hover{background:var(--bg3);color:var(--tx);}
+.toggle-item .toggle-icon{
+  width:18px;height:18px;border-radius:4px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;flex-shrink:0;transition:all 0.15s;
+}
+.toggle-item .toggle-icon.open{background:var(--gn);color:#fff;}
+.toggle-item .toggle-icon.closed{background:var(--bg4);color:var(--tx3);}
+.toggle-item .toggle-text{
+  flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.toggle-item.active{background:var(--bg3);color:var(--tx);outline:1px solid var(--bl);}
+.toggle-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;
+  background:var(--am);color:#000;
+}
+
+/* ===== SLIDE NAV BAR ===== */
+.slide-nav{
+  display:none;background:var(--bg2);border-bottom:1px solid var(--bg3);
+  padding:6px 16px;align-items:center;gap:8px;
+  position:sticky;top:0;z-index:50;
+}
+.slide-nav.show{display:flex;}
+.slide-nav .sbtn{
+  width:30px;height:28px;border-radius:5px;border:1px solid var(--bg3);
+  background:var(--bg2);color:var(--tx2);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:14px;
+  transition:all 0.12s;
+}
+.slide-nav .sbtn:hover{background:var(--bg3);color:var(--tx);}
+.slide-nav .slide-info{font-size:12px;color:var(--tx2);min-width:60px;text-align:center;}
+.slide-thumbs{
+  display:flex;gap:4px;overflow-x:auto;flex:1;padding:2px 0;
+}
+.slide-thumbs::-webkit-scrollbar{height:4px;}
+.slide-thumbs::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:2px;}
+.slide-thumb{
+  width:56px;height:32px;border-radius:4px;border:2px solid var(--bg3);
+  background:var(--bg3);cursor:pointer;font-size:9px;font-weight:600;
+  display:flex;align-items:center;justify-content:center;color:var(--tx3);
+  flex-shrink:0;transition:all 0.12s;
+}
+.slide-thumb:hover{border-color:var(--bl);color:var(--tx);}
+.slide-thumb.active{border-color:var(--bl);background:var(--bl);color:#fff;}
+
+/* ===== STATUS BAR ===== */
+.statusbar{
+  height:24px;background:var(--bg2);border-top:1px solid var(--bg3);
+  display:flex;align-items:center;padding:0 16px;gap:16px;
+  font-size:11px;color:var(--tx3);
+  position:fixed;bottom:0;left:0;right:0;z-index:100;
+}
+.statusbar .dot{width:6px;height:6px;border-radius:50%;margin-right:4px;display:inline-block;}
+.dot-gn{background:var(--gn);}
+.dot-am{background:var(--am);}
+
+/* ===== MODAL ===== */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;
+  display:none;align-items:center;justify-content:center;
+}
+.modal-overlay.show{display:flex;}
+.modal{
+  background:var(--bg2);border:1px solid var(--bg3);border-radius:12px;
+  padding:28px;max-width:480px;width:90%;
+}
+.modal h2{font-size:16px;margin-bottom:12px;}
+.modal p{font-size:13px;color:var(--tx2);line-height:1.7;margin-bottom:16px;}
+.modal .btn-row{display:flex;gap:8px;justify-content:flex-end;}
+
+/* GIF result item */
+.gif-item{
+  border-radius:6px;overflow:hidden;cursor:pointer;
+  border:2px solid transparent;transition:border-color 0.15s;
+  aspect-ratio:1;background:var(--bg3);
+}
+.gif-item:hover{border-color:var(--bl);}
+.gif-item.selected{border-color:var(--bl);box-shadow:0 0 0 2px var(--bl);}
+.gif-item img{width:100%;height:100%;object-fit:cover;}
+
+/* Hide scrollbar aesthetically */
+.canvas-wrap::-webkit-scrollbar{width:8px;height:8px;}
+.canvas-wrap::-webkit-scrollbar-track{background:var(--bg);}
+.canvas-wrap::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:4px;}
+.panel::-webkit-scrollbar{width:6px;}
+.panel::-webkit-scrollbar-track{background:var(--bg2);}
+.panel::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:3px;}
+
+/* Keyboard shortcut hint */
+.kbd{
+  display:inline-block;padding:1px 5px;border-radius:3px;
+  background:var(--bg3);font-size:10px;font-family:'SF Mono','Consolas',monospace;
+  color:var(--tx3);margin-left:4px;
+}
+
+/* Welcome screen */
+.welcome{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100%;color:var(--tx3);text-align:center;padding:40px;
+}
+.welcome h2{font-size:20px;color:var(--tx);margin-bottom:8px;font-weight:600;}
+.welcome p{font-size:13px;line-height:1.8;margin-bottom:20px;max-width:400px;}
+.welcome .shortcut-list{font-size:12px;color:var(--tx3);line-height:2;margin-top:12px;}
+/* ===== v3 additions ===== */
+.ed-menu{position:absolute;top:38px;right:0;background:var(--bg2);border:1px solid var(--bg3);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.45);padding:4px;display:none;z-index:300;min-width:190px;}
+.ed-menu.show{display:block;}
+.ed-menu-item{padding:9px 12px;font-size:12px;color:var(--tx2);border-radius:5px;cursor:pointer;white-space:nowrap;}
+.ed-menu-item:hover{background:var(--bg3);color:var(--tx);}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+
+<!-- ===== TOP BAR ===== -->
+<div class="topbar">
+  <div class="logo">HTML Visual Editor <span>v3</span></div>
+  <div class="sep"></div>
+  <button class="btn" onclick="openFile()" title="Ctrl/Cmd+O">📂 열기</button>
+  <button class="btn btn-success" onclick="saveFile()" title="Ctrl/Cmd+S">💾 저장</button>
+  <button class="btn" onclick="saveAsFile()">💾 다른 이름 저장</button>
+  <button class="btn" onclick="edShowUrlModal()" title="URL에서 HTML 불러오기 (CORS 허용 필요)">🌐 URL 열기</button>
+  <div class="ed-export-wrap" style="position:relative;display:inline-flex;">
+    <button class="btn" onclick="edToggleExportMenu(event)" title="PDF 또는 PNG로 내보내기">⤓ 내보내기 ▾</button>
+    <div class="ed-menu" id="edExportMenu">
+      <div class="ed-menu-item" onclick="edExportPDF()">🖨 PDF로 내보내기 (인쇄 → PDF 저장)</div>
+      <div class="ed-menu-item" onclick="edExportPNG()">🖼 PNG 이미지로 내보내기</div>
+    </div>
+  </div>
+  <div class="sep"></div>
+  <button class="btn" onclick="doUndo()" title="Ctrl/Cmd+Z">↩ 실행취소</button>
+  <button class="btn" onclick="doRedo()" title="Ctrl/Cmd+Shift+Z">↪ 다시실행</button>
+  <div class="sep"></div>
+  <div class="file-name" id="fileName">파일을 열어주세요</div>
+  <div class="spacer"></div>
+  <div class="zoom-ctrl">
+    <button class="btn" onclick="setZoom(-10)">−</button>
+    <span id="zoomLabel">100%</span>
+    <button class="btn" onclick="setZoom(10)">+</button>
+    <button class="btn" onclick="setZoom(0)">맞춤</button>
+  </div>
+</div>
+
+<!-- ===== TOOLBAR ===== -->
+<div class="toolbar">
+  <div class="tool-group">
+    <span class="tool-label">선택</span>
+    <button class="tbtn active" id="btnSelect" onclick="setMode('select')" title="선택 모드 (V)">🖱</button>
+    <button class="tbtn" id="btnEdit" onclick="setMode('edit')" title="텍스트 편집 모드 (T)">✏️</button>
+  </div>
+  <div class="tool-group">
+    <span class="tool-label">글꼴</span>
+    <select class="tool-select" id="fontFamily" onchange="applyStyle('fontFamily',this.value)">
+      <option value="">원본 유지</option>
+      <option value="'FS', sans-serif">Freesentation</option>
+      <option value="-apple-system, 'Segoe UI', sans-serif">시스템 폰트</option>
+      <option value="Georgia, serif">Georgia</option>
+      <option value="'Courier New', monospace">Courier New</option>
+    </select>
+    <select class="tool-select" id="fontSize" onchange="applyStyle('fontSize',this.value)">
+      <option value="">크기</option>
+      <option value="10px">10</option>
+      <option value="12px">12</option>
+      <option value="14px">14</option>
+      <option value="16px">16</option>
+      <option value="18px">18</option>
+      <option value="20px">20</option>
+      <option value="24px">24</option>
+      <option value="28px">28</option>
+      <option value="32px">32</option>
+      <option value="36px">36</option>
+      <option value="42px">42</option>
+      <option value="48px">48</option>
+      <option value="56px">56</option>
+      <option value="64px">64</option>
+    </select>
+  </div>
+  <div class="tool-group">
+    <span class="tool-label">스타일</span>
+    <button class="tbtn" onclick="applyStyle('fontWeight','bold')" title="굵게 (Ctrl+B)"><b>B</b></button>
+    <button class="tbtn" onclick="applyStyle('fontStyle','italic')" title="기울임 (Ctrl+I)"><i>I</i></button>
+    <button class="tbtn" onclick="applyStyle('textDecoration','underline')" title="밑줄"><u>U</u></button>
+  </div>
+  <div class="tool-group">
+    <span class="tool-label">정렬</span>
+    <button class="tbtn" onclick="applyStyle('textAlign','left')" title="왼쪽">☰</button>
+    <button class="tbtn" onclick="applyStyle('textAlign','center')" title="가운데">☰</button>
+    <button class="tbtn" onclick="applyStyle('textAlign','right')" title="오른쪽">☰</button>
+  </div>
+  <div class="tool-group">
+    <span class="tool-label">글자색</span>
+    <input type="color" class="color-input" id="textColor" value="#1C1C1A" onchange="applyStyle('color',this.value)">
+    <span class="tool-label">배경색</span>
+    <input type="color" class="color-input" id="bgColor" value="#FFFFFF" onchange="applyStyle('backgroundColor',this.value)">
+  </div>
+  <div class="tool-group">
+    <span class="tool-label">간격</span>
+    <select class="tool-select" id="lineHeight" onchange="applyStyle('lineHeight',this.value)">
+      <option value="">줄 간격</option>
+      <option value="1">1.0</option>
+      <option value="1.2">1.2</option>
+      <option value="1.4">1.4</option>
+      <option value="1.6">1.6</option>
+      <option value="1.8">1.8</option>
+      <option value="2">2.0</option>
+      <option value="2.2">2.2</option>
+    </select>
+    <select class="tool-select" id="padding" onchange="applyStyle('padding',this.value)">
+      <option value="">패딩</option>
+      <option value="0px">0</option>
+      <option value="4px">4</option>
+      <option value="8px">8</option>
+      <option value="12px">12</option>
+      <option value="16px">16</option>
+      <option value="24px">24</option>
+      <option value="32px">32</option>
+    </select>
+  </div>
+  <div class="tool-group">
+    <span class="tool-label">위치</span>
+    <button class="tbtn" onclick="resetPosition()" title="위치 초기화">⊙</button>
+  </div>
+  <div class="tool-group">
+    <span class="tool-label">삽입</span>
+    <button class="tbtn" onclick="showImageModal()" title="이미지 삽입">🖼</button>
+    <button class="tbtn" onclick="insertHTML()" title="HTML 삽입">＋</button>
+  </div>
+  <div class="tool-group">
+    <span class="tool-label">도형</span>
+    <button class="tbtn" onclick="edInsertShape('rect')" title="사각형">▭</button>
+    <button class="tbtn" onclick="edInsertShape('circle')" title="원">●</button>
+    <button class="tbtn" onclick="edInsertShape('line')" title="선">─</button>
+    <button class="tbtn" onclick="edInsertShape('arrow')" title="화살표">➔</button>
+    <button class="tbtn" onclick="edInsertShape('textbox')" title="텍스트박스">🅴</button>
+  </div>
+  <div class="tool-group">
+    <span class="tool-label">요소</span>
+    <button class="tbtn" onclick="edInsertElement('table')" title="표 (2x2)">▦</button>
+    <button class="tbtn" onclick="edInsertElement('hr')" title="구분선">═</button>
+    <button class="tbtn" onclick="edInsertElement('button')" title="버튼">🔘</button>
+  </div>
+  <div class="tool-group">
+    <button class="tbtn" onclick="deleteSelected()" title="선택 요소 삭제 (Del)">🗑</button>
+    <button class="tbtn" onclick="duplicateSelected()" title="복제">📋</button>
+  </div>
+  <div class="tool-group" id="toggleToolGroup" style="display:none;">
+    <span class="tool-label">토글</span>
+    <button class="tbtn" onclick="expandAllToggles()" title="모두 펼치기">▼</button>
+    <button class="tbtn" onclick="collapseAllToggles()" title="모두 접기">▶</button>
+    <span class="toggle-badge" id="toggleBadge" title="토글 요소 수">0</span>
+  </div>
+</div>
+
+<!-- ===== MAIN ===== -->
+<div class="main">
+  <!-- Canvas -->
+  <div class="canvas-wrap" id="canvasWrap">
+    <!-- Slide navigation (reveal.js only) -->
+    <div class="slide-nav" id="slideNav" style="position:fixed;top:var(--topbar);left:0;right:var(--panel);z-index:60;margin-top:var(--toolbar);">
+      <button class="sbtn" onclick="slideGo(-1)" title="이전 슬라이드 (PageUp)">◀</button>
+      <div class="slide-info" id="slideInfo">1 / 1</div>
+      <button class="sbtn" onclick="slideGo(1)" title="다음 슬라이드 (PageDown)">▶</button>
+      <div class="slide-thumbs" id="slideThumbs"></div>
+    </div>
+    <div id="welcomeScreen" class="welcome">
+      <h2>HTML Visual Editor <span style="color:var(--bl);font-weight:400;">v3</span></h2>
+      <p>HTML 파일을 열어서 시각적으로 편집하세요.<br>텍스트, 색상, 크기, 간격 등을 직접 수정하고 저장할 수 있습니다.<br><br><b style="color:var(--am);">✨ NEW</b> — 토글(details/summary) 요소를 펼치고 접어 내부 콘텐츠도 편집 가능!<br><b style="color:var(--pr);">🆕 v3</b> 도형 삽입 · 8방향 리사이즈 핸들 · 스타일 패널 · URL 열기 · PDF/PNG 내보내기</p>
+      <button class="btn btn-primary" onclick="openFile()" style="font-size:14px;padding:10px 24px;">📂 HTML 파일 열기</button>
+      <div class="shortcut-list">
+        <strong>단축키</strong><br>
+        <kbd class="kbd">Ctrl/⌘+O</kbd> 열기 &nbsp;
+        <kbd class="kbd">Ctrl/⌘+S</kbd> 저장 &nbsp;
+        <kbd class="kbd">Ctrl/⌘+Z</kbd> 실행취소<br>
+        <kbd class="kbd">V</kbd> 선택 모드 &nbsp;
+        <kbd class="kbd">T</kbd> 텍스트 편집 모드 &nbsp;
+        <kbd class="kbd">Del</kbd> 삭제<br>
+        <kbd class="kbd">←→↑↓</kbd> 1px 이동 &nbsp;
+        <kbd class="kbd">Shift+←→↑↓</kbd> 10px 이동 &nbsp;
+        <kbd class="kbd">드래그</kbd> 자유 이동<br>
+        <kbd class="kbd">더블클릭</kbd> 토글 펼치기/접기
+      </div>
+    </div>
+    <div class="canvas-frame" id="canvasFrame" style="display:none;">
+      <iframe id="editorFrame" sandbox="allow-same-origin allow-scripts"></iframe>
+    </div>
+  </div>
+
+  <!-- Right Panel -->
+  <div class="panel" id="panel">
+    <div class="panel-section">
+      <h3>선택된 요소</h3>
+      <div class="el-info" id="elInfo">선택 없음</div>
+    </div>
+
+    <!-- Toggle Control Panel (shown when toggle elements exist) -->
+    <div class="panel-section toggle-section" id="toggleSection">
+      <h3>토글 요소 관리 <span style="font-size:10px;font-weight:400;color:var(--tx3);">(&lt;details&gt;/&lt;summary&gt;)</span></h3>
+      <div style="display:flex;gap:6px;margin-bottom:10px;">
+        <button class="btn" onclick="expandAllToggles()" style="flex:1;justify-content:center;font-size:11px;">▼ 모두 펼치기</button>
+        <button class="btn" onclick="collapseAllToggles()" style="flex:1;justify-content:center;font-size:11px;">▶ 모두 접기</button>
+      </div>
+      <div class="toggle-list" id="toggleList"></div>
+    </div>
+
+    <!-- Selected Toggle Element Control -->
+    <div class="panel-section" id="toggleElSection" style="display:none;">
+      <h3>토글 제어</h3>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;">
+        <span class="prop-label">상태</span>
+        <span id="toggleElState" style="font-size:12px;font-weight:600;color:var(--gn);">펼침</span>
+      </div>
+      <button class="btn btn-warn" onclick="toggleSelectedElement()" id="toggleElBtn" style="width:100%;justify-content:center;">
+        ▼ 펼치기 / 접기
+      </button>
+      <p style="font-size:10px;color:var(--tx3);margin-top:6px;line-height:1.5;">
+        💡 더블클릭으로도 토글할 수 있습니다. 펼친 상태에서 내부 요소를 선택하여 편집하세요.
+      </p>
+    </div>
+
+    <div class="panel-section" id="propSection" style="display:none;">
+      <h3>속성 편집</h3>
+      <div class="prop-row">
+        <span class="prop-label">위치 X</span>
+        <input class="prop-input" id="propLeft" placeholder="0px" onchange="setProp('left',this.value)">
+      </div>
+      <div class="prop-row">
+        <span class="prop-label">위치 Y</span>
+        <input class="prop-input" id="propTop" placeholder="0px" onchange="setProp('top',this.value)">
+      </div>
+      <div class="prop-row">
+        <span class="prop-label">position</span>
+        <select class="prop-input" id="propPos" onchange="setProp('position',this.value)" style="padding:0 4px;">
+          <option value="static">static</option>
+          <option value="relative">relative</option>
+          <option value="absolute">absolute</option>
+          <option value="fixed">fixed</option>
+        </select>
+      </div>
+      <div class="prop-row">
+        <span class="prop-label">너비</span>
+        <input class="prop-input" id="propW" placeholder="auto" onchange="setProp('width',this.value)">
+      </div>
+      <div class="prop-row">
+        <span class="prop-label">높이</span>
+        <input class="prop-input" id="propH" placeholder="auto" onchange="setProp('height',this.value)">
+      </div>
+      <div class="prop-row">
+        <span class="prop-label">마진</span>
+        <input class="prop-input" id="propM" placeholder="0px" onchange="setProp('margin',this.value)">
+      </div>
+      <div class="prop-row">
+        <span class="prop-label">패딩</span>
+        <input class="prop-input" id="propP" placeholder="0px" onchange="setProp('padding',this.value)">
+      </div>
+      <div class="prop-row">
+        <span class="prop-label">테두리</span>
+        <input class="prop-input" id="propBorder" placeholder="none" onchange="setProp('border',this.value)">
+      </div>
+      <div class="prop-row">
+        <span class="prop-label">둥글기</span>
+        <input class="prop-input" id="propRadius" placeholder="0px" onchange="setProp('borderRadius',this.value)">
+      </div>
+      <div class="prop-row">
+        <span class="prop-label">글자색</span>
+        <input type="color" class="color-input" id="propColor" onchange="setProp('color',this.value)">
+        <input class="prop-input" id="propColorText" placeholder="#000" onchange="setProp('color',this.value);document.getElementById('propColor').value=this.value;">
+      </div>
+      <div class="prop-row">
+        <span class="prop-label">배경색</span>
+        <input type="color" class="color-input" id="propBg" onchange="setProp('backgroundColor',this.value)">
+        <input class="prop-input" id="propBgText" placeholder="#fff" onchange="setProp('backgroundColor',this.value);document.getElementById('propBg').value=this.value;">
+      </div>
+      <div class="prop-row">
+        <span class="prop-label">글자 크기</span>
+        <input class="prop-input" id="propFS" placeholder="16px" onchange="setProp('fontSize',this.value)">
+      </div>
+      <div class="prop-row">
+        <span class="prop-label">줄 간격</span>
+        <input class="prop-input" id="propLH" placeholder="1.6" onchange="setProp('lineHeight',this.value)">
+      </div>
+      <div class="prop-row">
+        <span class="prop-label">투명도</span>
+        <input class="prop-input" id="propOpacity" type="range" min="0" max="1" step="0.05" value="1" onchange="setProp('opacity',this.value)">
+      </div>
+    </div>
+
+    <div class="panel-section" id="stylePanel" style="display:none;">
+      <h3>스타일 <span style="font-size:10px;font-weight:400;color:var(--tx3);">(선택 요소에 즉시 적용)</span></h3>
+      <p style="font-size:10px;color:var(--tx3);margin:-4px 0 10px;line-height:1.5;">💡 요소 선택 → 8방향 핸들로 크기 조절 · 드래그로 이동 · 아래에서 색·글꼴·여백·테두리 편집</p>
+      <div class="prop-row">
+        <span class="prop-label">글자색</span>
+        <input type="color" class="color-input" id="edcColor" onchange="edSetStyle('color',this.value)">
+        <span class="prop-label">배경색</span>
+        <input type="color" class="color-input" id="edcBg" onchange="edSetStyle('backgroundColor',this.value)">
+      </div>
+      <div class="prop-row">
+        <span class="prop-label">글자크기</span>
+        <input class="prop-input" id="edcFontSize" type="number" placeholder="16" onchange="edSetStyle('fontSize',this.value+'px')">
+        <span class="prop-label">폰트</span>
+        <select class="prop-input" id="edcFont" onchange="edSetStyle('fontFamily',this.value)" style="padding:0 4px;">
+          <option value="">기본</option>
+          <option value="'Noto Sans KR',sans-serif">Noto Sans KR</option>
+          <option value="'Inter',sans-serif">Inter</option>
+          <option value="Georgia,'Times New Roman',serif">serif</option>
+          <option value="'Courier New',monospace">monospace</option>
+        </select>
+      </div>
+      <div class="prop-row">
+        <span class="prop-label">굵기</span>
+        <select class="prop-input" id="edcWeight" onchange="edSetStyle('fontWeight',this.value)" style="padding:0 4px;">
+          <option value="normal">normal</option>
+          <option value="bold">bold</option>
+          <option value="800">800</option>
+        </select>
+        <span class="prop-label">정렬</span>
+        <select class="prop-input" id="edcAlign" onchange="edSetStyle('textAlign',this.value)" style="padding:0 4px;">
+          <option value="left">왼쪽</option>
+          <option value="center">가운데</option>
+          <option value="right">오른쪽</option>
+        </select>
+      </div>
+      <div class="prop-row">
+        <span class="prop-label">안쪽여백</span>
+        <input class="prop-input" id="edcPad" type="number" placeholder="0" onchange="edSetStyle('padding',this.value+'px')">
+        <span class="prop-label">바깥여백</span>
+        <input class="prop-input" id="edcMargin" type="number" placeholder="0" onchange="edSetStyle('margin',this.value+'px')">
+      </div>
+      <div class="prop-row">
+        <span class="prop-label">모서리</span>
+        <input class="prop-input" id="edcRadius" type="number" placeholder="0" onchange="edSetStyle('borderRadius',this.value+'px')">
+        <span class="prop-label">테두리</span>
+        <select class="prop-input" id="edcBorderW" onchange="edSetBorder()" style="padding:0 4px;">
+          <option value="0">없음</option>
+          <option value="1">1px</option>
+          <option value="2">2px</option>
+        </select>
+        <input type="color" class="color-input" id="edcBorderColor" value="#333333" onchange="edSetBorder()">
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>텍스트 직접 편집</h3>
+      <textarea class="prop-textarea" id="textEdit" placeholder="요소를 선택하면 텍스트를 편집할 수 있습니다." oninput="updateText()"></textarea>
+    </div>
+
+    <div class="panel-section">
+      <h3>CSS 직접 입력</h3>
+      <textarea class="prop-textarea" id="cssEdit" placeholder="예: font-size: 20px; color: red;" onchange="applyRawCSS()"></textarea>
+      <button class="btn" onclick="applyRawCSS()" style="margin-top:6px;width:100%;justify-content:center;">적용</button>
+    </div>
+
+    <div class="panel-section">
+      <h3>편집 이력 <span style="font-size:10px;font-weight:400;color:var(--tx3);">(최근 20개)</span></h3>
+      <div id="historyList" style="max-height:200px;overflow-y:auto;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== STATUS BAR ===== -->
+<div class="statusbar">
+  <span><span class="dot dot-gn" id="statusDot"></span> <span id="statusMode">선택 모드</span></span>
+  <span id="statusEl">요소: -</span>
+  <span id="statusSize">-</span>
+  <span id="statusToggle" style="display:none;color:var(--am);">토글: 0개</span>
+  <span class="spacer" style="flex:1;"></span>
+  <span>Mac: ⌘ | Windows: Ctrl | 더블클릭: 토글</span>
+  <span style="color:var(--tx3);font-size:10px;margin-left:12px;">제작자: 김광태(yuaye.kt@gmail.com)</span>
+</div>
+
+<!-- ===== HELP MODAL ===== -->
+<div class="modal-overlay" id="helpModal">
+  <div class="modal">
+    <h2>사용 방법</h2>
+    <p>
+      <strong>1. 파일 열기</strong> — 📂 버튼 또는 Ctrl/⌘+O로 HTML 파일을 엽니다.<br>
+      <strong>2. 요소 선택</strong> — 선택 모드(V)에서 요소를 클릭하면 파란 테두리로 선택됩니다.<br>
+      <strong>3. 텍스트 편집</strong> — 편집 모드(T)에서 텍스트를 직접 클릭하여 수정합니다.<br>
+      <strong>4. 속성 변경</strong> — 우측 패널에서 색상, 크기, 간격 등을 조정합니다.<br>
+      <strong>5. 토글 제어</strong> — 더블클릭으로 토글 요소를 펼치고 접습니다. 우측 패널에서 일괄 제어 가능합니다.<br>
+      <strong>6. 저장</strong> — 💾 버튼 또는 Ctrl/⌘+S로 수정된 HTML을 저장합니다.
+    </p>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="document.getElementById('helpModal').classList.remove('show')">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== IMAGE MODAL ===== -->
+<div class="modal-overlay" id="imageModal">
+  <div class="modal" style="max-width:560px;">
+    <h2>🖼 이미지 삽입</h2>
+    <p style="margin-bottom:12px;">이미지 파일을 선택하거나 URL을 입력하세요. 파일은 base64로 인코딩되어 HTML에 내장됩니다.</p>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:6px;margin-bottom:14px;">
+      <button class="btn" id="imgTabFile" onclick="switchImgTab('file')" style="flex:1;justify-content:center;">📁 파일 업로드</button>
+      <button class="btn" id="imgTabUrl" onclick="switchImgTab('url')" style="flex:1;justify-content:center;">🔗 URL 입력</button>
+      <button class="btn" id="imgTabGif" onclick="switchImgTab('gif')" style="flex:1;justify-content:center;">🎞 GIF 검색</button>
+    </div>
+
+    <!-- File upload -->
+    <div id="imgPanelFile">
+      <div id="imgDropZone" style="border:2px dashed var(--bg4);border-radius:10px;padding:28px;text-align:center;cursor:pointer;margin-bottom:12px;transition:border-color 0.2s;"
+           onclick="document.getElementById('imgFileInput').click()"
+           ondragover="event.preventDefault();this.style.borderColor='var(--bl)'"
+           ondragleave="this.style.borderColor='var(--bg4)'"
+           ondrop="handleImgDrop(event)">
+        <div style="font-size:2em;opacity:0.4;margin-bottom:4px;">📁</div>
+        <div style="font-size:13px;color:var(--tx2);">클릭하거나 드래그하여 이미지 파일 선택</div>
+        <div style="font-size:11px;color:var(--tx3);margin-top:4px;">PNG, JPG, GIF, SVG, WebP 지원</div>
+      </div>
+      <input type="file" id="imgFileInput" accept="image/*" style="display:none" onchange="handleImgFile(event)">
+    </div>
+
+    <!-- URL input -->
+    <div id="imgPanelUrl" style="display:none;">
+      <input class="prop-input" id="imgUrlInput" placeholder="https://example.com/image.png" style="width:100%;height:36px;margin-bottom:12px;">
+    </div>
+
+    <!-- GIF search (Tenor) -->
+    <div id="imgPanelGif" style="display:none;">
+      <div style="display:flex;gap:6px;margin-bottom:10px;">
+        <input class="prop-input" id="gifSearchInput" placeholder="검색어 입력 (예: thumbs up, coding)" style="flex:1;height:36px;" onkeydown="if(event.key==='Enter')searchGifs()">
+        <button class="btn btn-primary" onclick="searchGifs()">검색</button>
+      </div>
+      <div id="gifResults" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-height:240px;overflow-y:auto;"></div>
+    </div>
+
+    <!-- Preview -->
+    <div id="imgPreview" style="display:none;margin:12px 0;text-align:center;background:var(--bg3);border-radius:8px;padding:10px;max-height:200px;overflow:hidden;">
+      <img id="imgPreviewImg" style="max-width:100%;max-height:180px;border-radius:6px;">
+    </div>
+
+    <!-- Options -->
+    <div style="margin:12px 0;">
+      <div class="prop-row">
+        <span class="prop-label" style="min-width:80px;">삽입 방식</span>
+        <select class="prop-input" id="imgInsertMode" style="padding:0 6px;">
+          <option value="replace">선택 요소 교체 (플레이스홀더 → 이미지)</option>
+          <option value="inside">선택 요소 안에 삽입</option>
+          <option value="after">선택 요소 뒤에 삽입</option>
+          <option value="background">선택 요소 배경으로 설정</option>
+        </select>
+      </div>
+      <div class="prop-row">
+        <span class="prop-label" style="min-width:80px;">크기</span>
+        <select class="prop-input" id="imgSize" style="padding:0 6px;">
+          <option value="100%">100% 너비</option>
+          <option value="auto">원본 크기</option>
+          <option value="50%">50% 너비</option>
+          <option value="200px">200px</option>
+          <option value="300px">300px</option>
+          <option value="400px">400px</option>
+          <option value="600px">600px</option>
+        </select>
+      </div>
+      <div class="prop-row">
+        <span class="prop-label" style="min-width:80px;">둥글기</span>
+        <select class="prop-input" id="imgRadius" style="padding:0 6px;">
+          <option value="0">없음</option>
+          <option value="6px">6px</option>
+          <option value="10px" selected>10px</option>
+          <option value="16px">16px</option>
+          <option value="50%">원형</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" onclick="closeImageModal()">취소</button>
+      <button class="btn btn-primary" id="imgInsertBtn" onclick="insertImage()" disabled>삽입</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== URL LOAD MODAL ===== -->
+<div class="modal-overlay" id="urlModal">
+  <div class="modal">
+    <h2>🌐 URL에서 HTML 열기</h2>
+    <p>불러올 HTML 페이지의 주소를 입력하세요. 다른 도메인의 파일은 그 서버가 CORS를 허용해야 불러올 수 있습니다.</p>
+    <input class="prop-input" id="urlInput" placeholder="https://example.com/page.html" style="width:100%;height:36px;margin-bottom:16px;" onkeydown="if(event.key==='Enter')edLoadUrl()">
+    <div class="btn-row">
+      <button class="btn" onclick="edCloseUrlModal()">취소</button>
+      <button class="btn btn-primary" onclick="edLoadUrl()">불러오기</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden file inputs -->
+<input type="file" id="fileInput" accept=".html,.htm" style="display:none" onchange="handleFileOpen(event)">
+
+<script>
+// ===== STATE =====
+let currentFile = null;
+let originalHTML = '';
+let selectedEl = null;
+let selectedEls = [];          // Multi-select array
+let mode = 'select';
+let zoom = 100;
+let undoStack = [];
+let redoStack = [];
+let fileHandle = null;
+let isRevealFile = false;
+let isDeckFile = false;         // 1920x1080 presentation-html-deck (.slide sections)
+let currentSlide = 0;
+let totalSlides = 0;
+let slideElements = [];        // Direct DOM references to <section> slides
+let toggleElements = [];       // Tracked <details> elements in iframe
+
+const frame = document.getElementById('editorFrame');
+const canvasFrame = document.getElementById('canvasFrame');
+const welcome = document.getElementById('welcomeScreen');
+
+// ===== FILE OPERATIONS =====
+async function openFile() {
+  if (window.showOpenFilePicker) {
+    try {
+      const [handle] = await window.showOpenFilePicker({
+        types: [{ description: 'HTML Files', accept: { 'text/html': ['.html', '.htm'] } }]
+      });
+      fileHandle = handle;
+      const file = await handle.getFile();
+      const text = await file.text();
+      loadHTML(text, file.name);
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+    }
+  }
+  document.getElementById('fileInput').click();
+}
+
+function handleFileOpen(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => { loadHTML(reader.result, file.name); };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function loadHTML(html, name) {
+  originalHTML = html;
+  currentFile = name;
+  document.getElementById('fileName').textContent = name;
+  undoStack = [];
+  redoStack = [];
+  selectedEl = null;
+  selectedEls = [];
+  currentSlide = 0;
+
+  welcome.style.display = 'none';
+  canvasFrame.style.display = 'block';
+
+  isRevealFile = html.includes('reveal') && html.includes('class="slides"');
+  // Native 1920x1080 slide deck (presentation-html-deck): <section class="slide"> in #stage
+  isDeckFile = !isRevealFile
+               && /<section[^>]*class=["'][^"']*\bslide\b/i.test(html)
+               && (html.includes('editor-mode') || html.includes('id="stage"'));
+  if (isRevealFile) {
+    canvasFrame.style.width = '1280px';
+    canvasFrame.style.height = '720px';
+    frame.style.width = '1280px';
+    frame.style.height = '720px';
+  } else if (isDeckFile) {
+    // Render at true slide size; the canvas zoom fits it to the screen.
+    canvasFrame.style.width = '1920px';
+    canvasFrame.style.height = '1080px';
+    frame.style.width = '1920px';
+    frame.style.height = '1080px';
+  } else {
+    canvasFrame.style.width = '900px';
+    canvasFrame.style.height = '';
+    frame.style.width = '900px';
+    frame.style.height = '5000px';
+  }
+
+  frame.srcdoc = html;
+  frame.onload = () => {
+    setupIframeListeners();
+    if (!isRevealFile && !isDeckFile) {
+      setTimeout(() => {
+        try {
+          const h = frame.contentDocument.documentElement.scrollHeight;
+          frame.style.height = Math.max(h, 800) + 'px';
+          canvasFrame.style.height = frame.style.height;
+        } catch(e) {}
+      }, 500);
+    }
+    if (isDeckFile) {
+      setTimeout(() => setupDeckMode(), 150);
+      setTimeout(() => { if (totalSlides <= 1) setupDeckMode(); }, 1200);
+    }
+    if (isRevealFile) {
+      setTimeout(() => setupSlideNav(), 500);
+      setTimeout(() => { if (totalSlides <= 1) setupSlideNav(); }, 2000);
+    }
+    document.getElementById('slideNav').classList.toggle('show', isRevealFile || isDeckFile);
+
+    // Scan for toggle elements
+    setTimeout(() => scanToggleElements(), 300);
+
+    pushUndo('파일 열기');
+    updateStatus();
+  };
+
+  setZoom(0);
+}
+
+async function saveFile() {
+  if (!currentFile) return;
+  const html = getEditedHTML();
+  if (fileHandle) {
+    try {
+      const writable = await fileHandle.createWritable();
+      await writable.write(html);
+      await writable.close();
+      showStatus('저장 완료: ' + currentFile);
+      return;
+    } catch(e) {
+      console.warn('File System Access save failed, falling back to download');
+    }
+  }
+  downloadHTML(html, currentFile);
+}
+
+function saveAsFile() {
+  if (!currentFile) return;
+  const html = getEditedHTML();
+  const name = prompt('파일 이름:', currentFile.replace('.html', '_edited.html'));
+  if (name) downloadHTML(html, name);
+}
+
+function downloadHTML(html, name) {
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+  showStatus('저장 완료: ' + name);
+}
+
+function getEditedHTML() {
+  try {
+    const doc = frame.contentDocument;
+    const injected = doc.getElementById('editor-injected-styles');
+    if (injected) injected.remove();
+    const deckStyles = doc.getElementById('editor-deck-styles');
+    if (deckStyles) deckStyles.remove();
+    if (isDeckFile) {
+      // Strip editor-only slide state so the saved deck runs standalone.
+      doc.querySelectorAll('.__ed_current').forEach(el => el.classList.remove('__ed_current'));
+      doc.body.classList.remove('editor-mode');
+      doc.body.style.removeProperty('--editor-zoom');
+      if (!doc.body.getAttribute('style')) doc.body.removeAttribute('style');
+    }
+    doc.querySelectorAll('.editor-highlight, .editor-hover, .editor-dragging, .editor-move-cursor, .editor-multi').forEach(el => {
+      el.classList.remove('editor-highlight', 'editor-hover', 'editor-dragging', 'editor-move-cursor', 'editor-multi');
+    });
+    doc.querySelectorAll('[data-editor-guide]').forEach(g => g.remove());
+    doc.querySelectorAll('[contenteditable]').forEach(el => {
+      el.removeAttribute('contenteditable');
+    });
+    // Remove editor-added toggle indicator overlays
+    doc.querySelectorAll('[data-editor-toggle-indicator]').forEach(el => el.remove());
+    // v3: strip resize handles before serialization
+    doc.querySelectorAll('[data-ed-handle]').forEach(n => n.remove());
+
+    // ===== Clean up toggle-related inline styles added by the editor =====
+    // The editor adds maxHeight, overflow, padding inline styles to toggle siblings.
+    // These MUST be removed before saving, otherwise they override the original
+    // CSS class-based toggle behavior (e.g. .active { max-height: 2000px }).
+    //
+    // Strategy: Reset all custom-toggle elements and their siblings to their
+    // CSS-class-only state (remove editor-injected inline styles).
+
+    // 1. Clean custom toggle buttons: remove editor-added inline styles
+    doc.querySelectorAll('[onclick]').forEach(el => {
+      const onclick = (el.getAttribute('onclick') || '').toLowerCase();
+      if (onclick.includes('toggle')) {
+        // Clean the sibling (the content that gets toggled)
+        const sibling = el.nextElementSibling;
+        if (sibling) {
+          sibling.style.removeProperty('max-height');
+          sibling.style.removeProperty('overflow');
+          sibling.style.removeProperty('padding');
+          // If style attribute is now empty, remove it entirely
+          if (sibling.getAttribute('style') === '') {
+            sibling.removeAttribute('style');
+          }
+        }
+      }
+    });
+
+    // 2. Clean <details> children: remove forced display styles
+    doc.querySelectorAll('details > *:not(summary)').forEach(child => {
+      child.style.removeProperty('display');
+      if (child.getAttribute('style') === '') {
+        child.removeAttribute('style');
+      }
+    });
+
+    // 3. Clean aria-expanded targets
+    doc.querySelectorAll('[aria-controls]').forEach(el => {
+      const targetId = el.getAttribute('aria-controls');
+      if (targetId) {
+        const target = doc.getElementById(targetId);
+        if (target) {
+          target.style.removeProperty('display');
+          if (target.getAttribute('style') === '') {
+            target.removeAttribute('style');
+          }
+        }
+      }
+    });
+
+    const html = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+    // Re-inject styles for continued editing
+    setupIframeListeners();
+    if (isDeckFile) { injectDeckStyles(); slideGoTo(currentSlide); }
+    // Re-scan toggles after re-injecting
+    setTimeout(() => scanToggleElements(), 100);
+    if (typeof edRenderHandles === 'function') { try { edRenderHandles(); } catch(e){} }
+    return html;
+  } catch(e) {
+    return originalHTML;
+  }
+}
+
+// ===== DRAG STATE =====
+let isDragging = false;
+let dragEl = null;
+let dragStartX = 0, dragStartY = 0;
+let dragOrigLeft = 0, dragOrigTop = 0;
+let dragOrigPos = '';
+let dragMoved = false;
+
+// ===== TOGGLE SUPPORT =====
+
+// Find the closest <details> ancestor (or self) for an element
+function findToggleParent(el) {
+  let cur = el;
+  while (cur && cur !== frame.contentDocument.body) {
+    if (cur.tagName === 'DETAILS') return cur;
+    cur = cur.parentElement;
+  }
+  return null;
+}
+
+// Find the closest <summary> ancestor (or self)
+function findSummaryElement(el) {
+  let cur = el;
+  while (cur && cur !== frame.contentDocument.body) {
+    if (cur.tagName === 'SUMMARY') return cur;
+    cur = cur.parentElement;
+  }
+  return null;
+}
+
+// Is this element a toggleable type? (details, summary, or custom toggle patterns)
+function isToggleRelated(el) {
+  if (!el) return false;
+  const tag = el.tagName;
+  if (tag === 'DETAILS' || tag === 'SUMMARY') return true;
+  const details = findToggleParent(el);
+  if (details) return true;
+  // onclick with "toggle" keyword (e.g. onclick="toggleDetail(this)")
+  const onclick = el.getAttribute('onclick') || '';
+  if (onclick.toLowerCase().includes('toggle')) return true;
+  // data-toggle, data-bs-toggle, aria-expanded
+  if (el.hasAttribute('data-toggle') || el.hasAttribute('data-bs-toggle')) return true;
+  if (el.hasAttribute('aria-expanded')) return true;
+  // Class-based patterns
+  const cls = typeof el.className === 'string' ? el.className : '';
+  if (cls.includes('accordion') || cls.includes('collapse') || cls.includes('toggle') || cls.includes('collapsible')) return true;
+  return false;
+}
+
+// Find the closest custom-toggle ancestor (button with onclick*toggle or toggle class)
+function findCustomToggleParent(el) {
+  let cur = el;
+  while (cur && cur !== frame.contentDocument.body) {
+    if (isToggleRelated(cur) && cur.tagName !== 'DETAILS' && cur.tagName !== 'SUMMARY') return cur;
+    cur = cur.parentElement;
+  }
+  return null;
+}
+
+// Manually toggle a <details> element — force visibility of children
+function manualToggleDetails(detailsEl) {
+  if (!detailsEl || detailsEl.tagName !== 'DETAILS') return;
+  const willOpen = !detailsEl.hasAttribute('open');
+  if (willOpen) {
+    detailsEl.setAttribute('open', '');
+  } else {
+    detailsEl.removeAttribute('open');
+  }
+  // Force child visibility (in case browser default styles don't apply in sandboxed iframe)
+  Array.from(detailsEl.children).forEach(child => {
+    if (child.tagName !== 'SUMMARY' && !child.hasAttribute('data-editor-toggle-indicator')) {
+      child.style.display = willOpen ? '' : 'none';
+    }
+  });
+  // Update toggle list and panel
+  updateToggleList();
+  updateToggleElPanel();
+  pushUndo('토글 전환: ' + getToggleLabel(detailsEl));
+
+  // Resize iframe if needed
+  if (!isRevealFile && !isDeckFile) {
+    setTimeout(() => {
+      try {
+        const h = frame.contentDocument.documentElement.scrollHeight;
+        frame.style.height = Math.max(h, 800) + 'px';
+        canvasFrame.style.height = frame.style.height;
+      } catch(e) {}
+    }, 100);
+  }
+}
+
+// Toggle a custom toggle element (onclick-based, aria-expanded, Bootstrap collapse, etc.)
+function manualToggleCustom(el) {
+  if (!el) return;
+
+  // ===== Pattern 1: onclick="toggleXxx(this)" with nextElementSibling + .active class =====
+  // (Common pattern: button.classList.toggle('active'), sibling.classList.toggle('active'))
+  // Also handles max-height based CSS toggles
+  const onclickAttr = el.getAttribute('onclick') || '';
+  if (onclickAttr.toLowerCase().includes('toggle')) {
+    const sibling = el.nextElementSibling;
+    const isActive = el.classList.contains('active');
+    el.classList.toggle('active');
+    if (sibling) {
+      sibling.classList.toggle('active');
+      // Force visibility: if the sibling uses max-height:0 / overflow:hidden, also set explicit styles
+      if (!isActive) {
+        // Opening: ensure content is visible
+        sibling.style.maxHeight = sibling.scrollHeight + 200 + 'px';
+        sibling.style.overflow = 'visible';
+        sibling.style.padding = sibling.style.padding || '';
+      } else {
+        // Closing: hide content
+        sibling.style.maxHeight = '0px';
+        sibling.style.overflow = 'hidden';
+        sibling.style.padding = '0';
+      }
+    }
+    pushUndo('토글 전환: ' + el.textContent.trim().substring(0, 30));
+    updateToggleList();
+    updateToggleElPanel();
+    resizeIframeHeight();
+    return;
+  }
+
+  // ===== Pattern 2: aria-expanded =====
+  if (el.hasAttribute('aria-expanded')) {
+    const isExpanded = el.getAttribute('aria-expanded') === 'true';
+    el.setAttribute('aria-expanded', isExpanded ? 'false' : 'true');
+
+    const targetId = el.getAttribute('aria-controls') || el.getAttribute('data-target') || el.getAttribute('href');
+    if (targetId) {
+      const cleanId = targetId.replace('#', '');
+      const targetEl = frame.contentDocument.getElementById(cleanId);
+      if (targetEl) {
+        if (isExpanded) {
+          targetEl.style.display = 'none';
+          targetEl.classList.remove('show', 'active');
+        } else {
+          targetEl.style.display = '';
+          targetEl.classList.add('show');
+        }
+      }
+    }
+    pushUndo('커스텀 토글 전환');
+    updateToggleList();
+    return;
+  }
+
+  // ===== Pattern 3: Bootstrap 5 data-bs-toggle="collapse" =====
+  if (el.hasAttribute('data-bs-toggle') && el.getAttribute('data-bs-toggle') === 'collapse') {
+    const targetSel = el.getAttribute('data-bs-target') || el.getAttribute('href');
+    if (targetSel) {
+      try {
+        const targetEl = frame.contentDocument.querySelector(targetSel);
+        if (targetEl) {
+          const isShown = targetEl.classList.contains('show') || targetEl.style.display !== 'none';
+          if (isShown) {
+            targetEl.classList.remove('show');
+            targetEl.style.display = 'none';
+          } else {
+            targetEl.classList.add('show');
+            targetEl.style.display = '';
+          }
+        }
+      } catch(e) {}
+    }
+    pushUndo('Bootstrap 토글 전환');
+    updateToggleList();
+    return;
+  }
+
+  // ===== Pattern 4: Generic class-based toggle =====
+  const cls = typeof el.className === 'string' ? el.className : '';
+  if (cls.includes('toggle') || cls.includes('accordion') || cls.includes('collapsible')) {
+    el.classList.toggle('active');
+    const next = el.nextElementSibling;
+    if (next) {
+      next.classList.toggle('active');
+      const cs = frame.contentWindow.getComputedStyle(next);
+      if (cs.maxHeight === '0px' || cs.display === 'none') {
+        next.style.maxHeight = next.scrollHeight + 200 + 'px';
+        next.style.overflow = 'visible';
+        next.style.display = '';
+      } else {
+        next.style.maxHeight = '0px';
+        next.style.overflow = 'hidden';
+      }
+    }
+    pushUndo('토글 전환');
+    updateToggleList();
+    return;
+  }
+}
+
+// Helper: resize iframe height after toggle
+function resizeIframeHeight() {
+  if (!isRevealFile && !isDeckFile) {
+    setTimeout(() => {
+      try {
+        const h = frame.contentDocument.documentElement.scrollHeight;
+        frame.style.height = Math.max(h, 800) + 'px';
+        canvasFrame.style.height = frame.style.height;
+      } catch(e) {}
+    }, 200);
+  }
+}
+
+// Get a readable label for a toggle element
+function getToggleLabel(detailsEl) {
+  const summary = detailsEl.querySelector('summary');
+  if (summary) {
+    return summary.textContent.trim().substring(0, 40) || '<summary>';
+  }
+  return detailsEl.id || '<details>';
+}
+
+// Scan all toggle elements in iframe
+let customToggleElements = [];  // Tracked custom toggle buttons
+
+function scanToggleElements() {
+  const doc = frame.contentDocument;
+  if (!doc) return;
+
+  toggleElements = Array.from(doc.querySelectorAll('details'));
+
+  // Find custom toggle elements: onclick*toggle, aria-expanded, Bootstrap, class-based
+  customToggleElements = [];
+  // 1. onclick handlers containing "toggle"
+  doc.querySelectorAll('[onclick]').forEach(el => {
+    const onclick = el.getAttribute('onclick') || '';
+    if (onclick.toLowerCase().includes('toggle')) {
+      customToggleElements.push(el);
+    }
+  });
+  // 2. aria-expanded elements (not already captured)
+  doc.querySelectorAll('[aria-expanded]').forEach(el => {
+    if (!customToggleElements.includes(el)) customToggleElements.push(el);
+  });
+  // 3. Bootstrap collapse triggers
+  doc.querySelectorAll('[data-bs-toggle="collapse"], [data-toggle="collapse"]').forEach(el => {
+    if (!customToggleElements.includes(el)) customToggleElements.push(el);
+  });
+  // 4. Elements with toggle-related classes (but not inside editor UI)
+  doc.querySelectorAll('.accordion-toggle, .collapsible-header, [class*="detail-toggle"]').forEach(el => {
+    if (!customToggleElements.includes(el)) customToggleElements.push(el);
+  });
+
+  const totalCount = toggleElements.length + customToggleElements.length;
+
+  const toolGroup = document.getElementById('toggleToolGroup');
+  const toggleSection = document.getElementById('toggleSection');
+  const statusToggle = document.getElementById('statusToggle');
+
+  if (totalCount > 0) {
+    toolGroup.style.display = 'flex';
+    toggleSection.classList.add('show');
+    statusToggle.style.display = '';
+    statusToggle.textContent = `토글: ${totalCount}개`;
+    document.getElementById('toggleBadge').textContent = totalCount;
+  } else {
+    toolGroup.style.display = 'none';
+    toggleSection.classList.remove('show');
+    statusToggle.style.display = 'none';
+  }
+
+  updateToggleList();
+  addToggleIndicators();
+}
+
+// Add visual indicators to toggle elements in iframe
+function addToggleIndicators() {
+  const doc = frame.contentDocument;
+  if (!doc) return;
+
+  // Remove old indicators
+  doc.querySelectorAll('[data-editor-toggle-indicator]').forEach(el => el.remove());
+
+  toggleElements.forEach((details, i) => {
+    const summary = details.querySelector('summary');
+    if (!summary) return;
+
+    // Add a small visual indicator
+    const indicator = doc.createElement('span');
+    indicator.setAttribute('data-editor-toggle-indicator', '1');
+    indicator.style.cssText = `
+      display:inline-block;margin-left:6px;font-size:10px;
+      padding:1px 6px;border-radius:8px;vertical-align:middle;
+      cursor:pointer;user-select:none;transition:all 0.15s;
+      background:${details.hasAttribute('open') ? '#22C55E' : '#71717A'};
+      color:#fff;font-weight:600;
+    `;
+    indicator.textContent = details.hasAttribute('open') ? '▼ 펼침' : '▶ 접힘';
+    indicator.title = '클릭하여 토글';
+    indicator.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      manualToggleDetails(details);
+      addToggleIndicators(); // Refresh indicators
+    }, true);
+
+    summary.appendChild(indicator);
+  });
+}
+
+// Build toggle list in right panel
+function updateToggleList() {
+  const list = document.getElementById('toggleList');
+  if (!list) return;
+
+  const doc = frame.contentDocument;
+  if (!doc) return;
+
+  // Re-scan details
+  toggleElements = Array.from(doc.querySelectorAll('details'));
+
+  let html = '';
+
+  // 1. <details> elements
+  toggleElements.forEach((details, i) => {
+    const isOpen = details.hasAttribute('open');
+    const label = getToggleLabel(details);
+    const isActive = (selectedEl === details || findToggleParent(selectedEl) === details);
+    html += `<div class="toggle-item${isActive ? ' active' : ''}" onclick="toggleFromList(${i})" ondblclick="selectToggleFromList(${i})">
+      <span class="toggle-icon ${isOpen ? 'open' : 'closed'}">${isOpen ? '▼' : '▶'}</span>
+      <span class="toggle-text" title="${label}">${label}</span>
+    </div>`;
+  });
+
+  // 2. Custom toggle elements (onclick-based, class-based, aria-expanded)
+  customToggleElements.forEach((el, i) => {
+    const isActive = el.classList.contains('active');
+    const isExpanded = el.getAttribute('aria-expanded') === 'true';
+    const isOpen = isActive || isExpanded;
+    const label = el.textContent.trim().substring(0, 40) || el.tagName.toLowerCase();
+    const isSelected = (selectedEl === el || findCustomToggleParent(selectedEl) === el);
+    html += `<div class="toggle-item${isSelected ? ' active' : ''}" onclick="toggleCustomFromListByIndex(${i})" ondblclick="selectCustomToggleFromList(${i})">
+      <span class="toggle-icon ${isOpen ? 'open' : 'closed'}">${isOpen ? '▼' : '▶'}</span>
+      <span class="toggle-text" title="${label}">${label}</span>
+    </div>`;
+  });
+
+  list.innerHTML = html || '<div style="font-size:11px;color:var(--tx3);padding:8px;">토글 요소가 없습니다.</div>';
+}
+
+// Click on toggle list item: toggle it
+function toggleFromList(index) {
+  if (index >= 0 && index < toggleElements.length) {
+    manualToggleDetails(toggleElements[index]);
+    addToggleIndicators();
+  }
+}
+
+// Double-click on toggle list item: select it
+function selectToggleFromList(index) {
+  if (index >= 0 && index < toggleElements.length) {
+    selectElement(toggleElements[index]);
+    // Scroll into view in iframe
+    toggleElements[index].scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+// Toggle custom element from list
+function toggleCustomFromList(listItem, index) {
+  const doc = frame.contentDocument;
+  if (!doc) return;
+  const customToggles = Array.from(doc.querySelectorAll('[aria-expanded]'));
+  if (index >= 0 && index < customToggles.length) {
+    manualToggleCustom(customToggles[index]);
+    updateToggleList();
+  }
+}
+
+// Toggle custom element by index in customToggleElements array
+function toggleCustomFromListByIndex(index) {
+  if (index >= 0 && index < customToggleElements.length) {
+    manualToggleCustom(customToggleElements[index]);
+  }
+}
+
+// Select (highlight) a custom toggle from list
+function selectCustomToggleFromList(index) {
+  if (index >= 0 && index < customToggleElements.length) {
+    selectElement(customToggleElements[index]);
+    customToggleElements[index].scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+// Expand all toggle elements
+function expandAllToggles() {
+  const doc = frame.contentDocument;
+  if (!doc) return;
+
+  // <details> elements — force children visible
+  doc.querySelectorAll('details').forEach(d => {
+    d.setAttribute('open', '');
+    Array.from(d.children).forEach(child => {
+      if (child.tagName !== 'SUMMARY' && !child.hasAttribute('data-editor-toggle-indicator')) {
+        child.style.display = '';
+      }
+    });
+  });
+
+  // aria-expanded elements
+  doc.querySelectorAll('[aria-expanded="false"]').forEach(el => {
+    el.setAttribute('aria-expanded', 'true');
+    const targetId = el.getAttribute('aria-controls') || el.getAttribute('data-target') || el.getAttribute('href');
+    if (targetId) {
+      const cleanId = targetId.replace('#', '');
+      const targetEl = doc.getElementById(cleanId);
+      if (targetEl) {
+        targetEl.style.display = '';
+        targetEl.classList.add('show');
+      }
+    }
+  });
+
+  // Bootstrap collapse
+  doc.querySelectorAll('.collapse:not(.show)').forEach(el => {
+    el.classList.add('show');
+    el.style.display = '';
+  });
+
+  // Custom onclick-based toggles (e.g. session-detail-toggle)
+  customToggleElements.forEach(el => {
+    if (!el.classList.contains('active')) {
+      el.classList.add('active');
+      const sibling = el.nextElementSibling;
+      if (sibling) {
+        sibling.classList.add('active');
+        sibling.style.maxHeight = sibling.scrollHeight + 200 + 'px';
+        sibling.style.overflow = 'visible';
+      }
+    }
+  });
+
+  updateToggleList();
+  addToggleIndicators();
+  updateToggleElPanel();
+  pushUndo('모든 토글 펼치기');
+  showStatus('모든 토글을 펼쳤습니다');
+  resizeIframeHeight();
+}
+
+// Collapse all toggle elements
+function collapseAllToggles() {
+  const doc = frame.contentDocument;
+  if (!doc) return;
+
+  doc.querySelectorAll('details[open]').forEach(d => {
+    d.removeAttribute('open');
+    Array.from(d.children).forEach(child => {
+      if (child.tagName !== 'SUMMARY' && !child.hasAttribute('data-editor-toggle-indicator')) {
+        child.style.display = 'none';
+      }
+    });
+  });
+
+  doc.querySelectorAll('[aria-expanded="true"]').forEach(el => {
+    el.setAttribute('aria-expanded', 'false');
+    const targetId = el.getAttribute('aria-controls') || el.getAttribute('data-target') || el.getAttribute('href');
+    if (targetId) {
+      const cleanId = targetId.replace('#', '');
+      const targetEl = doc.getElementById(cleanId);
+      if (targetEl) {
+        targetEl.style.display = 'none';
+        targetEl.classList.remove('show');
+      }
+    }
+  });
+
+  doc.querySelectorAll('.collapse.show').forEach(el => {
+    el.classList.remove('show');
+    el.style.display = 'none';
+  });
+
+  // Custom onclick-based toggles
+  customToggleElements.forEach(el => {
+    if (el.classList.contains('active')) {
+      el.classList.remove('active');
+      const sibling = el.nextElementSibling;
+      if (sibling) {
+        sibling.classList.remove('active');
+        sibling.style.maxHeight = '0px';
+        sibling.style.overflow = 'hidden';
+        sibling.style.padding = '0';
+      }
+    }
+  });
+
+  updateToggleList();
+  addToggleIndicators();
+  updateToggleElPanel();
+  pushUndo('모든 토글 접기');
+  showStatus('모든 토글을 접었습니다');
+  resizeIframeHeight();
+}
+
+// Toggle the currently selected element
+function toggleSelectedElement() {
+  if (!selectedEl) return;
+
+  // <details> pattern
+  const details = findToggleParent(selectedEl);
+  if (details) {
+    manualToggleDetails(details);
+    addToggleIndicators();
+    return;
+  }
+
+  // Custom toggle: walk up to find the toggle trigger
+  const customToggle = findCustomToggleParent(selectedEl) || (isToggleRelated(selectedEl) ? selectedEl : null);
+  if (customToggle) {
+    manualToggleCustom(customToggle);
+    return;
+  }
+}
+
+// Update toggle element panel (when a toggle-related element is selected)
+function updateToggleElPanel() {
+  const section = document.getElementById('toggleElSection');
+  if (!selectedEl) {
+    section.style.display = 'none';
+    return;
+  }
+
+  const details = findToggleParent(selectedEl);
+  const customToggle = !details ? (findCustomToggleParent(selectedEl) || (isToggleRelated(selectedEl) ? selectedEl : null)) : null;
+
+  if (details) {
+    section.style.display = '';
+    const isOpen = details.hasAttribute('open');
+    document.getElementById('toggleElState').textContent = isOpen ? '펼침 (open)' : '접힘 (closed)';
+    document.getElementById('toggleElState').style.color = isOpen ? 'var(--gn)' : 'var(--tx3)';
+    document.getElementById('toggleElBtn').textContent = isOpen ? '▶ 접기' : '▼ 펼치기';
+  } else if (customToggle) {
+    section.style.display = '';
+    const isActive = customToggle.classList.contains('active');
+    const isExpanded = customToggle.getAttribute('aria-expanded') === 'true';
+    const isOpen = isActive || isExpanded;
+    document.getElementById('toggleElState').textContent = isOpen ? '펼침 (expanded)' : '접힘 (collapsed)';
+    document.getElementById('toggleElState').style.color = isOpen ? 'var(--gn)' : 'var(--tx3)';
+    document.getElementById('toggleElBtn').textContent = isOpen ? '▶ 접기' : '▼ 펼치기';
+  } else {
+    section.style.display = 'none';
+  }
+}
+
+// ===== IFRAME INTERACTION =====
+function setupIframeListeners() {
+  const doc = frame.contentDocument;
+  if (!doc) return;
+
+  // Inject highlight + drag + guide styles
+  const style = doc.createElement('style');
+  style.id = 'editor-injected-styles';
+  style.textContent = `
+    .editor-highlight { outline: 2px solid #3B82F6 !important; outline-offset: 2px !important; }
+    .editor-multi { outline: 2px solid #A855F7 !important; outline-offset: 2px !important; }
+    .editor-hover { outline: 1px dashed #60A5FA !important; outline-offset: 1px !important; }
+    .editor-dragging {
+      opacity: 0.85 !important; cursor: grabbing !important;
+      outline: 2px solid #F59E0B !important; outline-offset: 2px !important;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.25) !important;
+      z-index: 9999 !important; position: relative !important;
+    }
+    .editor-move-cursor { cursor: grab !important; }
+    .editor-guide {
+      position: fixed !important; background: #EF4444 !important;
+      z-index: 99999 !important; pointer-events: none !important;
+    }
+    .editor-guide-v { width: 1px !important; top: 0 !important; bottom: 0 !important; }
+    .editor-guide-h { height: 1px !important; left: 0 !important; right: 0 !important; }
+    .editor-guide-label {
+      position: fixed !important; background: #EF4444 !important; color: #fff !important;
+      font-size: 10px !important; padding: 1px 5px !important; border-radius: 3px !important;
+      z-index: 99999 !important; pointer-events: none !important;
+      font-family: monospace !important;
+    }
+    /* Toggle visual hints — force details open/close behavior in sandboxed iframe */
+    details > *:not(summary) { display: none !important; }
+    details[open] > *:not(summary) { display: block !important; }
+    details[open] > div:not(summary) { display: block !important; }
+    details[open] > ul:not(summary) { display: block !important; }
+    details[open] > ol:not(summary) { display: block !important; }
+    details[open] > p:not(summary) { display: block !important; }
+    details[open] > table:not(summary) { display: table !important; }
+    details[open] > span:not(summary) { display: inline !important; }
+    details[open] > [data-editor-toggle-indicator] { display: inline-block !important; }
+    details:not([open]) > [data-editor-toggle-indicator] { display: inline-block !important; }
+    details { transition: all 0.15s; }
+    details summary { cursor: pointer !important; display: list-item !important; }
+    [data-ed-handle]{position:absolute!important;box-sizing:border-box!important;display:block!important;pointer-events:auto!important;margin:0!important;}
+  `;
+  const existing = doc.getElementById('editor-injected-styles');
+  if (existing) existing.remove();
+  doc.head.appendChild(style);
+
+  // ===== Block ALL keyboard events inside iframe =====
+  doc.addEventListener('keydown', (e) => {
+    const isMac = navigator.platform.includes('Mac');
+    const mod = isMac ? e.metaKey : e.ctrlKey;
+    if (mode === 'edit' && selectedEl && selectedEl.getAttribute('contenteditable') === 'true') {
+      if (mod && (e.key === 's' || e.key === 'z' || e.key === 'o' || e.key === 'y')) {
+        e.preventDefault(); e.stopPropagation();
+        if (e.key === 's') saveFile();
+        if (e.key === 'o') openFile();
+        if (e.key === 'z' && !e.shiftKey) doUndo();
+        if (e.key === 'z' && e.shiftKey) doRedo();
+        if (e.key === 'y') doRedo();
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault(); e.stopPropagation();
+        if (selectedEl) {
+          selectedEl.classList.remove('editor-highlight');
+          selectedEl.removeAttribute('contenteditable');
+          selectedEl = null;
+          updateStatus();
+        }
+      }
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    if (mod && e.key === 's') saveFile();
+    if (mod && e.key === 'o') openFile();
+    if (mod && e.key === 'z' && !e.shiftKey) doUndo();
+    if (mod && e.key === 'z' && e.shiftKey) doRedo();
+    if (mod && e.key === 'y') doRedo();
+    if (e.key === 'v' || e.key === 'V') setMode('select');
+    if (e.key === 't' || e.key === 'T') setMode('edit');
+    if (e.key === 'Delete' || e.key === 'Backspace') { if (selectedEl) deleteSelected(); }
+    if (e.key === 'Escape') { deselectAll(); }
+    if ((selectedEl || selectedEls.length) && ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
+      nudgeElement(e.key, e.shiftKey ? 10 : 1);
+    }
+    if (e.key === 'PageDown' || (e.key === 'ArrowRight' && !selectedEl && !selectedEls.length)) slideGo(1);
+    if (e.key === 'PageUp' || (e.key === 'ArrowLeft' && !selectedEl && !selectedEls.length)) slideGo(-1);
+  }, true);
+  doc.addEventListener('keyup', (e) => {
+    if (mode !== 'edit') { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); }
+  }, true);
+  doc.addEventListener('keypress', (e) => {
+    if (mode !== 'edit') { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); }
+  }, true);
+
+  // ===== DOUBLE-CLICK handler (native — works because mousedown no longer calls preventDefault) =====
+  doc.addEventListener('dblclick', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+
+    const el = e.target;
+    if (el.hasAttribute && el.hasAttribute('data-editor-toggle-indicator')) return;
+    if (el.hasAttribute && el.hasAttribute('data-ed-handle')) return;
+
+    // Check if on a <summary> or inside <details>
+    const summaryEl = findSummaryElement(el);
+    if (summaryEl) {
+      const details = summaryEl.parentElement;
+      if (details && details.tagName === 'DETAILS') {
+        manualToggleDetails(details);
+        addToggleIndicators();
+        selectElement(summaryEl);
+        showStatus('토글 전환: ' + getToggleLabel(details));
+        return;
+      }
+    }
+
+    const detailsEl = findToggleParent(el);
+    if (detailsEl) {
+      manualToggleDetails(detailsEl);
+      addToggleIndicators();
+      selectElement(el);
+      showStatus('토글 전환: ' + getToggleLabel(detailsEl));
+      return;
+    }
+
+    // Custom toggle — also check parent chain (e.g. clicking on span.toggle-icon inside button)
+    const customToggle = findCustomToggleParent(el) || (isToggleRelated(el) ? el : null);
+    if (customToggle) {
+      manualToggleCustom(customToggle);
+      selectElement(customToggle);
+      showStatus('커스텀 토글 전환');
+      return;
+    }
+
+    // Default: enter edit mode
+    if (mode === 'select') {
+      setMode('edit');
+      selectElement(el);
+    }
+  }, true);
+
+  // ===== CLICK handler (single click — select) =====
+  doc.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (dragMoved) { dragMoved = false; return; }
+
+    const el = e.target;
+    if (el.hasAttribute && el.hasAttribute('data-editor-toggle-indicator')) return;
+    if (el.hasAttribute && el.hasAttribute('data-ed-handle')) return;
+
+    if (e.shiftKey && mode === 'select') {
+      toggleMultiSelect(el);
+    } else {
+      selectElement(el);
+    }
+  }, true);
+
+  // ===== Hover handler =====
+  doc.addEventListener('mouseover', (e) => {
+    if (isDragging) return;
+    const el = e.target;
+    if (el.hasAttribute && el.hasAttribute('data-ed-handle')) return;
+    if (el !== selectedEl && el !== doc.body && el !== doc.documentElement) {
+      el.classList.add('editor-hover');
+    }
+    if (mode === 'select' && el !== doc.body && el !== doc.documentElement) {
+      el.classList.add('editor-move-cursor');
+    }
+  }, true);
+
+  doc.addEventListener('mouseout', (e) => {
+    e.target.classList.remove('editor-hover');
+    e.target.classList.remove('editor-move-cursor');
+  }, true);
+
+  // ===== Drag handlers =====
+  // IMPORTANT: mousedown does NOT call preventDefault() so that dblclick events fire naturally.
+  // Instead, we prevent text selection ONLY when actual drag movement starts (in mousemove).
+  let multiDragOrigins = [];
+  let mouseDownTarget = null;
+
+  doc.addEventListener('mousedown', (e) => {
+    if (mode !== 'select') return;
+    const el = e.target;
+    if (el === doc.body || el === doc.documentElement) return;
+    if (el.hasAttribute && el.hasAttribute('data-editor-toggle-indicator')) return;
+    if (el.hasAttribute && el.hasAttribute('data-ed-handle')) return;
+    // Do NOT call e.preventDefault() here — this allows dblclick to fire!
+    if (!e.shiftKey && !selectedEls.includes(el)) {
+      selectElement(el);
+    }
+    mouseDownTarget = el;
+    isDragging = true;
+    dragEl = el;
+    dragMoved = false;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    const allEls = selectedEls.length > 0 ? selectedEls : (selectedEl ? [selectedEl] : [el]);
+    multiDragOrigins = allEls.map(el => {
+      const cs = frame.contentWindow.getComputedStyle(el);
+      return { el, origPos: cs.position, left: parseInt(cs.left) || 0, top: parseInt(cs.top) || 0 };
+    });
+    dragOrigLeft = parseInt(frame.contentWindow.getComputedStyle(el).left) || 0;
+    dragOrigTop = parseInt(frame.contentWindow.getComputedStyle(el).top) || 0;
+  }, true);
+
+  doc.addEventListener('mousemove', (e) => {
+    if (!isDragging || !dragEl) return;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+      e.preventDefault(); // Only prevent default when actually dragging
+      // Clear any accidental text selection during drag
+      const sel = frame.contentWindow.getSelection();
+      if (sel) sel.removeAllRanges();
+
+      if (!dragMoved) {
+        // First time crossing threshold: set position to relative if static
+        multiDragOrigins.forEach(o => {
+          if (o.origPos === 'static') o.el.style.position = 'relative';
+        });
+      }
+      dragMoved = true;
+      edClearHandles();
+      multiDragOrigins.forEach(o => {
+        o.el.classList.add('editor-dragging');
+        o.el.style.left = (o.left + dx) + 'px';
+        o.el.style.top = (o.top + dy) + 'px';
+      });
+      showAlignmentGuides(dragEl, dx, dy);
+      const cnt = multiDragOrigins.length;
+      document.getElementById('statusEl').textContent = `이동 중 (${cnt}개): Δ${dx}, Δ${dy}`;
+    }
+  }, true);
+
+  doc.addEventListener('mouseup', (e) => {
+    if (!isDragging || !dragEl) { isDragging = false; return; }
+    multiDragOrigins.forEach(o => o.el.classList.remove('editor-dragging'));
+    removeGuides(doc);
+    if (dragMoved) {
+      const cnt = multiDragOrigins.length;
+      pushUndo(`요소 이동 (${cnt}개)`);
+      if (selectedEl) updatePanel(selectedEl);
+    }
+    isDragging = false;
+    dragEl = null;
+    multiDragOrigins = [];
+  }, true);
+
+  // Track text edits for undo
+  doc.addEventListener('input', (e) => {
+    pushUndo('텍스트 편집: ' + truncate(e.target.textContent, 30));
+  });
+}
+
+// ===== NUDGE with arrow keys (multi-select aware) =====
+function nudgeElement(key, amount) {
+  const allEls = selectedEls.length > 0 ? selectedEls : (selectedEl ? [selectedEl] : []);
+  if (allEls.length === 0) return;
+  allEls.forEach(el => {
+    const cs = frame.contentWindow.getComputedStyle(el);
+    if (cs.position === 'static') el.style.position = 'relative';
+    let left = parseInt(cs.left) || 0;
+    let top = parseInt(cs.top) || 0;
+    if (key === 'ArrowLeft') left -= amount;
+    if (key === 'ArrowRight') left += amount;
+    if (key === 'ArrowUp') top -= amount;
+    if (key === 'ArrowDown') top += amount;
+    el.style.left = left + 'px';
+    el.style.top = top + 'px';
+  });
+  pushUndo(`미세 이동 (${allEls.length}개): ${key}`);
+  if (selectedEl) updatePanel(selectedEl);
+}
+
+function selectElement(el) {
+  const doc = frame.contentDocument;
+  if (!doc) return;
+
+  selectedEls.forEach(e => e.classList.remove('editor-multi','editor-highlight'));
+  selectedEls = [];
+
+  if (selectedEl) {
+    selectedEl.classList.remove('editor-highlight');
+    selectedEl.removeAttribute('contenteditable');
+  }
+
+  selectedEl = el;
+  el.classList.add('editor-highlight');
+
+  if (mode === 'edit') {
+    el.setAttribute('contenteditable', 'true');
+    el.focus();
+  }
+
+  updatePanel(el);
+  updateToggleElPanel();
+  updateToggleList();
+  updateStatus();
+  if (typeof edRenderHandles === 'function') edRenderHandles();
+}
+
+function toggleMultiSelect(el) {
+  const doc = frame.contentDocument;
+  if (!doc) return;
+  if (el === doc.body || el === doc.documentElement) return;
+
+  const idx = selectedEls.indexOf(el);
+  if (idx >= 0) {
+    el.classList.remove('editor-multi','editor-highlight');
+    selectedEls.splice(idx, 1);
+  } else {
+    el.classList.add('editor-multi');
+    selectedEls.push(el);
+    if (selectedEl && !selectedEls.includes(selectedEl)) {
+      selectedEl.classList.remove('editor-highlight');
+      selectedEl.classList.add('editor-multi');
+      selectedEls.push(selectedEl);
+    }
+  }
+  if (selectedEls.length > 0) {
+    selectedEl = selectedEls[selectedEls.length - 1];
+    updatePanel(selectedEl);
+  } else {
+    selectedEl = null;
+  }
+  document.getElementById('statusEl').textContent = `${selectedEls.length}개 요소 선택`;
+  document.getElementById('elInfo').textContent = `${selectedEls.length}개 선택됨`;
+}
+
+function deselectAll() {
+  if (selectedEl) {
+    selectedEl.classList.remove('editor-highlight');
+    selectedEl.removeAttribute('contenteditable');
+  }
+  selectedEls.forEach(e => e.classList.remove('editor-multi','editor-highlight'));
+  selectedEls = [];
+  selectedEl = null;
+  document.getElementById('elInfo').textContent = '선택 없음';
+  document.getElementById('propSection').style.display = 'none';
+  document.getElementById('toggleElSection').style.display = 'none';
+  var _sp = document.getElementById('stylePanel'); if (_sp) _sp.style.display = 'none';
+  if (typeof edClearHandles === 'function') edClearHandles();
+  updateStatus();
+}
+
+// ===== ALIGNMENT GUIDES =====
+function showAlignmentGuides(el, dx, dy) {
+  const doc = frame.contentDocument;
+  if (!doc) return;
+  removeGuides(doc);
+
+  const parent = el.parentElement;
+  if (!parent) return;
+  const pRect = parent.getBoundingClientRect();
+  const eRect = el.getBoundingClientRect();
+  const SNAP = 5;
+
+  const eCenterX = eRect.left + eRect.width / 2;
+  const eCenterY = eRect.top + eRect.height / 2;
+  const pCenterX = pRect.left + pRect.width / 2;
+  const pCenterY = pRect.top + pRect.height / 2;
+
+  const vw = doc.documentElement.clientWidth;
+  const vh = doc.documentElement.clientHeight;
+  const vCenterX = vw / 2;
+  const vCenterY = vh / 2;
+
+  const guides = [];
+
+  if (Math.abs(eCenterX - pCenterX) < SNAP) {
+    guides.push({ type: 'v', pos: pCenterX, label: '부모 중앙' });
+    const correction = pCenterX - eCenterX;
+    el.style.left = (parseInt(el.style.left) + correction) + 'px';
+  }
+  if (Math.abs(eCenterX - vCenterX) < SNAP) {
+    guides.push({ type: 'v', pos: vCenterX, label: '화면 중앙' });
+    const correction = vCenterX - eCenterX;
+    el.style.left = (parseInt(el.style.left) + correction) + 'px';
+  }
+  if (Math.abs(eCenterY - pCenterY) < SNAP) {
+    guides.push({ type: 'h', pos: pCenterY, label: '부모 중앙' });
+    const correction = pCenterY - eCenterY;
+    el.style.top = (parseInt(el.style.top) + correction) + 'px';
+  }
+  if (Math.abs(eCenterY - vCenterY) < SNAP) {
+    guides.push({ type: 'h', pos: vCenterY, label: '화면 중앙' });
+    const correction = vCenterY - eCenterY;
+    el.style.top = (parseInt(el.style.top) + correction) + 'px';
+  }
+  if (Math.abs(eRect.left - pRect.left) < SNAP) {
+    guides.push({ type: 'v', pos: pRect.left, label: '좌측 정렬' });
+  }
+  if (Math.abs(eRect.right - pRect.right) < SNAP) {
+    guides.push({ type: 'v', pos: pRect.right, label: '우측 정렬' });
+  }
+
+  guides.forEach((g, i) => {
+    const line = doc.createElement('div');
+    line.className = 'editor-guide ' + (g.type === 'v' ? 'editor-guide-v' : 'editor-guide-h');
+    line.dataset.editorGuide = '1';
+    if (g.type === 'v') {
+      line.style.left = g.pos + 'px';
+    } else {
+      line.style.top = g.pos + 'px';
+    }
+    doc.body.appendChild(line);
+
+    const lbl = doc.createElement('div');
+    lbl.className = 'editor-guide-label';
+    lbl.dataset.editorGuide = '1';
+    lbl.textContent = g.label;
+    if (g.type === 'v') {
+      lbl.style.left = (g.pos + 4) + 'px';
+      lbl.style.top = (eRect.top - 16) + 'px';
+    } else {
+      lbl.style.top = (g.pos + 4) + 'px';
+      lbl.style.left = (eRect.left) + 'px';
+    }
+    doc.body.appendChild(lbl);
+  });
+}
+
+function removeGuides(doc) {
+  if (!doc) return;
+  doc.querySelectorAll('[data-editor-guide]').forEach(g => g.remove());
+}
+
+// ===== SLIDE NAVIGATION =====
+// ===== NATIVE 1920x1080 SLIDE DECK (presentation-html-deck) =====
+// Override the deck's editor-mode transform (which assumes a 1920px-wide viewport
+// and clips/offsets slides inside our narrow iframe). We render exactly one slide
+// at true size and let the canvas zoom fit it to the screen.
+function injectDeckStyles() {
+  const doc = frame.contentDocument;
+  if (!doc) return;
+  const old = doc.getElementById('editor-deck-styles');
+  if (old) old.remove();
+  const st = doc.createElement('style');
+  st.id = 'editor-deck-styles';
+  st.textContent = `
+    html,body{background:#fff!important;height:auto!important;overflow:hidden!important;margin:0!important;padding:0!important;}
+    #stage{position:static!important;display:block!important;overflow:visible!important;
+      width:1920px!important;height:1080px!important;inset:auto!important;transform:none!important;}
+    body.editor-mode #stage{position:static!important;display:block!important;overflow:visible!important;}
+    .slide{position:relative!important;left:auto!important;top:auto!important;right:auto!important;bottom:auto!important;
+      margin:0!important;transform:none!important;display:none!important;
+      width:1920px!important;height:1080px!important;}
+    body.editor-mode .slide{transform:none!important;margin:0!important;}
+    .slide.__ed_current{display:flex!important;}
+    #nav,#bar,#hint{display:none!important;}
+  `;
+  doc.head.appendChild(st);
+}
+
+function setupDeckMode() {
+  const doc = frame.contentDocument;
+  if (!doc) return;
+  // The deck's own script may add editor-mode; we drive slide visibility ourselves.
+  try { doc.body.classList.remove('editor-mode'); doc.body.style.removeProperty('--editor-zoom'); } catch(e) {}
+  injectDeckStyles();
+
+  slideElements = Array.from(doc.querySelectorAll('#stage > section.slide'));
+  if (slideElements.length === 0) slideElements = Array.from(doc.querySelectorAll('.slide'));
+  totalSlides = slideElements.length;
+  if (totalSlides === 0) { console.warn('No deck slides found'); return; }
+
+  if (currentSlide >= totalSlides || currentSlide < 0) currentSlide = 0;
+  slideElements.forEach((sec, i) => sec.classList.toggle('__ed_current', i === currentSlide));
+
+  updateSlideInfo();
+  buildSlideThumbs();
+  setZoom(0);
+  console.log('Deck slides found: ' + totalSlides + ' (presentation-html-deck)');
+}
+
+function setupSlideNav() {
+  const doc = frame.contentDocument;
+  if (!doc) return;
+
+  slideElements = Array.from(doc.querySelectorAll('.slides > section'));
+  totalSlides = slideElements.length;
+
+  if (totalSlides === 0) {
+    slideElements = Array.from(doc.querySelectorAll('.reveal section:not(section section)'));
+    totalSlides = slideElements.length;
+  }
+
+  if (totalSlides === 0) {
+    console.warn('No slides found');
+    return;
+  }
+
+  currentSlide = 0;
+  updateSlideInfo();
+  buildSlideThumbs();
+
+  const tryDisableRevealKB = () => {
+    try {
+      const win = frame.contentWindow;
+      if (win && win.Reveal) {
+        if (typeof win.Reveal.configure === 'function') {
+          win.Reveal.configure({ keyboard: false, controls: false });
+        }
+      }
+    } catch(e) {}
+  };
+  tryDisableRevealKB();
+  setTimeout(tryDisableRevealKB, 2000);
+
+  console.log(`Slides found: ${totalSlides} (DOM-based)`);
+}
+
+function slideGo(delta) {
+  if ((!isRevealFile && !isDeckFile) || totalSlides === 0) return;
+  const next = currentSlide + delta;
+  if (next < 0 || next >= totalSlides) return;
+  slideGoTo(next);
+}
+
+function slideGoTo(index) {
+  if ((!isRevealFile && !isDeckFile) || index < 0 || index >= totalSlides) return;
+  currentSlide = index;
+
+  if (isDeckFile) {
+    slideElements.forEach((section, i) => {
+      section.classList.toggle('__ed_current', i === index);
+    });
+    updateSlideInfo();
+    deselectAll();
+    return;
+  }
+
+  try {
+    const win = frame.contentWindow;
+    if (win && win.Reveal && typeof win.Reveal.slide === 'function') {
+      win.Reveal.slide(index);
+      updateSlideInfo();
+      deselectAll();
+      return;
+    }
+  } catch(e) {}
+
+  slideElements.forEach((section, i) => {
+    section.style.display = (i === index) ? '' : 'none';
+  });
+  updateSlideInfo();
+  deselectAll();
+}
+
+function updateSlideInfo() {
+  document.getElementById('slideInfo').textContent = `${currentSlide + 1} / ${totalSlides}`;
+  document.querySelectorAll('.slide-thumb').forEach((t, i) => {
+    t.classList.toggle('active', i === currentSlide);
+  });
+}
+
+function buildSlideThumbs() {
+  const container = document.getElementById('slideThumbs');
+  container.innerHTML = '';
+  for (let i = 0; i < totalSlides; i++) {
+    const thumb = document.createElement('div');
+    thumb.className = 'slide-thumb' + (i === 0 ? ' active' : '');
+    thumb.textContent = i + 1;
+    thumb.onclick = () => slideGoTo(i);
+    container.appendChild(thumb);
+  }
+}
+
+function updatePanel(el) {
+  if (!el) return;
+  const cs = frame.contentWindow.getComputedStyle(el);
+
+  let tag = el.tagName.toLowerCase();
+  let cls = el.className.replace('editor-highlight','').replace('editor-hover','').trim();
+  let info = `<${tag}>`;
+  if (el.id) info += `#${el.id}`;
+  if (cls) info += `.${cls.split(' ').join('.')}`;
+
+  // Add toggle indicator to info
+  if (tag === 'details') {
+    info += el.hasAttribute('open') ? ' [펼침]' : ' [접힘]';
+  } else if (tag === 'summary') {
+    info += ' [토글 헤더]';
+  }
+
+  document.getElementById('elInfo').textContent = info;
+
+  document.getElementById('propSection').style.display = 'block';
+
+  document.getElementById('propLeft').value = cs.left === 'auto' ? '0px' : cs.left;
+  document.getElementById('propTop').value = cs.top === 'auto' ? '0px' : cs.top;
+  document.getElementById('propPos').value = cs.position;
+  document.getElementById('propW').value = cs.width;
+  document.getElementById('propH').value = cs.height;
+  document.getElementById('propM').value = cs.margin;
+  document.getElementById('propP').value = cs.padding;
+  document.getElementById('propBorder').value = cs.border;
+  document.getElementById('propRadius').value = cs.borderRadius;
+  document.getElementById('propFS').value = cs.fontSize;
+  document.getElementById('propLH').value = cs.lineHeight;
+  document.getElementById('propOpacity').value = cs.opacity;
+
+  const color = rgbToHex(cs.color);
+  const bgColor = rgbToHex(cs.backgroundColor);
+  document.getElementById('propColor').value = color;
+  document.getElementById('propColorText').value = color;
+  document.getElementById('propBg').value = bgColor === '#00000000' ? '#ffffff' : bgColor;
+  document.getElementById('propBgText').value = bgColor;
+
+  document.getElementById('textEdit').value = el.textContent.substring(0, 500);
+  document.getElementById('cssEdit').value = el.getAttribute('style') || '';
+  try { if (typeof edUpdateStylePanel === 'function') edUpdateStylePanel(el); } catch(e){}
+  var _sp2 = document.getElementById('stylePanel'); if (_sp2) _sp2.style.display = 'block';
+  try { if (typeof edPositionHandles === 'function') edPositionHandles(); } catch(e){}
+}
+
+// ===== APPLY STYLES =====
+function applyStyle(prop, value) {
+  if (!selectedEl) return;
+  selectedEl.style[prop] = value;
+  pushUndo(`${prop}: ${value}`);
+  updatePanel(selectedEl);
+}
+
+function setProp(prop, value) {
+  if (!selectedEl) return;
+  selectedEl.style[prop] = value;
+  pushUndo(`${prop}: ${value}`);
+  updatePanel(selectedEl);
+}
+
+function applyRawCSS() {
+  if (!selectedEl) return;
+  const css = document.getElementById('cssEdit').value;
+  selectedEl.setAttribute('style', css);
+  pushUndo('CSS 직접 수정');
+  updatePanel(selectedEl);
+}
+
+function updateText() {
+  if (!selectedEl) return;
+  const text = document.getElementById('textEdit').value;
+  if (selectedEl.children.length === 0) {
+    selectedEl.textContent = text;
+  }
+}
+
+function deleteSelected() {
+  if (!selectedEl) return;
+  if (confirm('선택한 요소를 삭제하시겠습니까?')) {
+    const info = selectedEl.tagName;
+    selectedEl.remove();
+    selectedEl = null;
+    document.getElementById('elInfo').textContent = '삭제됨';
+    document.getElementById('propSection').style.display = 'none';
+    document.getElementById('toggleElSection').style.display = 'none';
+    pushUndo(`요소 삭제: <${info}>`);
+    scanToggleElements(); // Rescan toggles
+  }
+}
+
+function duplicateSelected() {
+  if (!selectedEl) return;
+  const clone = selectedEl.cloneNode(true);
+  clone.classList.remove('editor-highlight');
+  selectedEl.parentNode.insertBefore(clone, selectedEl.nextSibling);
+  pushUndo('요소 복제');
+  scanToggleElements(); // Rescan toggles
+}
+
+// ===== IMAGE INSERTION =====
+let pendingImageData = null;
+
+function showImageModal() {
+  document.getElementById('imageModal').classList.add('show');
+  switchImgTab('file');
+  pendingImageData = null;
+  document.getElementById('imgInsertBtn').disabled = true;
+  document.getElementById('imgPreview').style.display = 'none';
+  if (selectedEl && selectedEl.classList.contains('ph')) {
+    document.getElementById('imgInsertMode').value = 'replace';
+  }
+}
+
+function closeImageModal() {
+  document.getElementById('imageModal').classList.remove('show');
+  pendingImageData = null;
+}
+
+function switchImgTab(tab) {
+  document.getElementById('imgPanelFile').style.display = tab === 'file' ? '' : 'none';
+  document.getElementById('imgPanelUrl').style.display = tab === 'url' ? '' : 'none';
+  document.getElementById('imgPanelGif').style.display = tab === 'gif' ? '' : 'none';
+  document.getElementById('imgTabFile').classList.toggle('btn-primary', tab === 'file');
+  document.getElementById('imgTabUrl').classList.toggle('btn-primary', tab === 'url');
+  document.getElementById('imgTabGif').classList.toggle('btn-primary', tab === 'gif');
+  if (tab === 'url') {
+    document.getElementById('imgUrlInput').oninput = () => {
+      const url = document.getElementById('imgUrlInput').value.trim();
+      if (url) {
+        pendingImageData = url;
+        setImgPreview(url);
+        document.getElementById('imgInsertBtn').disabled = false;
+      }
+    };
+  }
+}
+
+function handleImgFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  readImageFile(file);
+  e.target.value = '';
+}
+
+function handleImgDrop(e) {
+  e.preventDefault();
+  e.target.style.borderColor = 'var(--bg4)';
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    readImageFile(file);
+  }
+}
+
+function readImageFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingImageData = reader.result;
+    setImgPreview(reader.result);
+    document.getElementById('imgInsertBtn').disabled = false;
+    showStatus(`이미지 로드: ${file.name} (${(file.size/1024).toFixed(0)}KB)`);
+  };
+  reader.readAsDataURL(file);
+}
+
+function setImgPreview(src) {
+  const preview = document.getElementById('imgPreview');
+  const img = document.getElementById('imgPreviewImg');
+  img.src = src;
+  preview.style.display = '';
+}
+
+async function searchGifs() {
+  const query = document.getElementById('gifSearchInput').value.trim();
+  if (!query) return;
+  const container = document.getElementById('gifResults');
+  const TENOR_KEY = ''; // 선택: 본인 Tenor API 키를 넣으면 GIF 검색이 활성화됩니다.
+  if (!TENOR_KEY) { container.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--tx3);padding:20px;font-size:12px;">GIF 검색은 본인 Tenor API 키가 필요합니다(코드의 TENOR_KEY). 이미지 삽입·URL·붙여넣기는 그대로 사용하세요.</div>'; return; }
+  container.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--tx3);padding:20px;font-size:12px;">검색 중...</div>';
+
+  try {
+    const resp = await fetch(`https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(query)}&key=${TENOR_KEY}&limit=12&media_filter=tinygif,gif`);
+    const data = await resp.json();
+    container.innerHTML = '';
+    if (data.results && data.results.length > 0) {
+      data.results.forEach(item => {
+        const url = item.media_formats.tinygif ? item.media_formats.tinygif.url : item.media_formats.gif.url;
+        const fullUrl = item.media_formats.gif ? item.media_formats.gif.url : url;
+        const div = document.createElement('div');
+        div.className = 'gif-item';
+        div.innerHTML = `<img src="${url}" loading="lazy">`;
+        div.onclick = () => {
+          container.querySelectorAll('.gif-item').forEach(g => g.classList.remove('selected'));
+          div.classList.add('selected');
+          loadGifAsBase64(fullUrl);
+        };
+        container.appendChild(div);
+      });
+    } else {
+      container.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--tx3);padding:20px;font-size:12px;">결과 없음</div>';
+    }
+  } catch(e) {
+    container.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--tx3);padding:20px;font-size:12px;">GIF 검색 실패. URL 탭에서 직접 GIF URL을 입력해주세요.</div>`;
+  }
+}
+
+async function loadGifAsBase64(url) {
+  try {
+    showStatus('GIF 로딩 중...');
+    const resp = await fetch(url);
+    const blob = await resp.blob();
+    const reader = new FileReader();
+    reader.onload = () => {
+      pendingImageData = reader.result;
+      setImgPreview(reader.result);
+      document.getElementById('imgInsertBtn').disabled = false;
+      showStatus('GIF 로드 완료');
+    };
+    reader.readAsDataURL(blob);
+  } catch(e) {
+    pendingImageData = url;
+    setImgPreview(url);
+    document.getElementById('imgInsertBtn').disabled = false;
+    showStatus('GIF 선택됨 (URL 방식)');
+  }
+}
+
+function insertImage() {
+  if (!pendingImageData) return;
+  const doc = frame.contentDocument;
+  if (!doc) return;
+
+  const size = document.getElementById('imgSize').value;
+  const radius = document.getElementById('imgRadius').value;
+  const insertMode = document.getElementById('imgInsertMode').value;
+
+  const img = doc.createElement('img');
+  img.src = pendingImageData;
+  img.style.maxWidth = size === 'auto' ? '' : size;
+  img.style.width = size === 'auto' ? 'auto' : (size.includes('%') ? size : '');
+  img.style.height = 'auto';
+  img.style.borderRadius = radius;
+  img.style.display = 'block';
+
+  if (insertMode === 'replace' && selectedEl) {
+    const parent = selectedEl.parentElement;
+    if (parent) {
+      parent.replaceChild(img, selectedEl);
+      selectedEl = img;
+      img.classList.add('editor-highlight');
+    }
+  } else if (insertMode === 'inside' && selectedEl) {
+    if (selectedEl.classList.contains('ph')) {
+      selectedEl.innerHTML = '';
+      selectedEl.style.display = 'flex';
+      selectedEl.style.alignItems = 'center';
+      selectedEl.style.justifyContent = 'center';
+      selectedEl.style.minHeight = '';
+      selectedEl.style.border = 'none';
+    }
+    selectedEl.appendChild(img);
+  } else if (insertMode === 'after' && selectedEl) {
+    selectedEl.parentElement.insertBefore(img, selectedEl.nextSibling);
+  } else if (insertMode === 'background' && selectedEl) {
+    selectedEl.style.backgroundImage = `url('${pendingImageData}')`;
+    selectedEl.style.backgroundSize = 'cover';
+    selectedEl.style.backgroundPosition = 'center';
+  } else {
+    const target = doc.querySelector('.reveal .present') || doc.body;
+    target.appendChild(img);
+  }
+
+  pushUndo('이미지 삽입');
+  closeImageModal();
+  showStatus('이미지 삽입 완료');
+}
+
+function insertHTML() {
+  if (!frame.contentDocument) return;
+  const html = prompt('삽입할 HTML 코드:');
+  if (!html) return;
+  const doc = frame.contentDocument;
+  const div = doc.createElement('div');
+  div.innerHTML = html;
+  if (selectedEl) {
+    selectedEl.parentElement.insertBefore(div.firstElementChild || div, selectedEl.nextSibling);
+  } else {
+    const target = doc.querySelector('.reveal .present') || doc.body;
+    target.appendChild(div.firstElementChild || div);
+  }
+  pushUndo('HTML 삽입');
+  scanToggleElements(); // Rescan in case new toggles added
+}
+
+// ===== DRAG & DROP images directly into canvas =====
+function setupCanvasDragDrop() {
+  const wrap = document.getElementById('canvasWrap');
+  wrap.addEventListener('dragover', (e) => { e.preventDefault(); });
+  wrap.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/') && frame.contentDocument) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        pendingImageData = reader.result;
+        setImgPreview(reader.result);
+        document.getElementById('imgInsertBtn').disabled = false;
+        showImageModal();
+        showStatus(`이미지 드롭: ${file.name}`);
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+}
+
+function resetPosition() {
+  if (!selectedEl) return;
+  selectedEl.style.position = '';
+  selectedEl.style.left = '';
+  selectedEl.style.top = '';
+  pushUndo('위치 초기화');
+  updatePanel(selectedEl);
+}
+
+// ===== MODE =====
+function setMode(m) {
+  mode = m;
+  document.getElementById('btnSelect').classList.toggle('active', m === 'select');
+  document.getElementById('btnEdit').classList.toggle('active', m === 'edit');
+
+  if (m === 'select' && selectedEl) {
+    selectedEl.removeAttribute('contenteditable');
+  }
+  if (m === 'edit' && selectedEl) {
+    selectedEl.setAttribute('contenteditable', 'true');
+    selectedEl.focus();
+  }
+
+  document.getElementById('statusMode').textContent = m === 'select' ? '선택 모드' : '텍스트 편집 모드';
+}
+
+// ===== ZOOM =====
+function setZoom(delta) {
+  if (delta === 0) {
+    const wrapW = document.getElementById('canvasWrap').clientWidth - 48;
+    const frameW = parseInt(canvasFrame.style.width) || 900;
+    zoom = Math.min(100, Math.round((wrapW / frameW) * 100));
+  } else {
+    zoom = Math.max(25, Math.min(200, zoom + delta));
+  }
+  canvasFrame.style.transform = `scale(${zoom / 100})`;
+  document.getElementById('zoomLabel').textContent = zoom + '%';
+}
+
+// ===== UNDO / REDO =====
+function pushUndo(label) {
+  try {
+    if (typeof edClearHandles === 'function') edClearHandles();
+    const html = frame.contentDocument.documentElement.outerHTML;
+    undoStack.push({ html, label });
+    if (undoStack.length > 50) undoStack.shift();
+    redoStack = [];
+    updateHistory();
+    if (typeof edRenderHandles === 'function') edRenderHandles();
+  } catch(e) {}
+}
+
+function doUndo() {
+  if (undoStack.length <= 1) return;
+  const current = undoStack.pop();
+  redoStack.push(current);
+  const prev = undoStack[undoStack.length - 1];
+  restoreState(prev.html);
+  updateHistory();
+  showStatus('실행취소: ' + current.label);
+}
+
+function doRedo() {
+  if (redoStack.length === 0) return;
+  const next = redoStack.pop();
+  undoStack.push(next);
+  restoreState(next.html);
+  updateHistory();
+  showStatus('다시실행: ' + next.label);
+}
+
+function restoreState(html) {
+  const doc = frame.contentDocument;
+  doc.documentElement.innerHTML = html.replace(/<html[^>]*>/, '').replace(/<\/html>/, '');
+  selectedEl = null;
+  setupIframeListeners();
+  if (isDeckFile) setupDeckMode();
+  setTimeout(() => scanToggleElements(), 100);
+}
+
+function updateHistory() {
+  const list = document.getElementById('historyList');
+  const recent = undoStack.slice(-20).reverse();
+  list.innerHTML = recent.map((item, i) =>
+    `<div class="history-item">${i === 0 ? '● ' : ''}${item.label}</div>`
+  ).join('');
+}
+
+// ===== HELPERS =====
+function rgbToHex(rgb) {
+  if (!rgb || rgb === 'transparent' || rgb === 'rgba(0, 0, 0, 0)') return '#00000000';
+  const match = rgb.match(/\d+/g);
+  if (!match || match.length < 3) return '#000000';
+  return '#' + match.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
+}
+
+function truncate(str, n) {
+  return str.length > n ? str.substring(0, n) + '…' : str;
+}
+
+function updateStatus() {
+  const el = selectedEl;
+  if (el) {
+    const tag = el.tagName.toLowerCase();
+    let label = `요소: <${tag}>`;
+    if (tag === 'details') label += el.hasAttribute('open') ? ' [펼침]' : ' [접힘]';
+    if (tag === 'summary') label += ' [토글]';
+    document.getElementById('statusEl').textContent = label;
+    const cs = frame.contentWindow.getComputedStyle(el);
+    document.getElementById('statusSize').textContent = `${parseInt(cs.width)}×${parseInt(cs.height)}px`;
+  } else {
+    document.getElementById('statusEl').textContent = '요소: -';
+    document.getElementById('statusSize').textContent = '-';
+  }
+}
+
+function showStatus(msg) {
+  document.getElementById('statusEl').textContent = msg;
+  setTimeout(updateStatus, 2000);
+}
+
+/* ============================================================
+   v3 ADDITIONS — resize handles, shapes, style panel,
+   element insert, URL load, export, paste image
+   ============================================================ */
+
+// ---- RESIZE HANDLES ----
+function edClearHandles(){
+  try{
+    var doc = frame.contentDocument; if(!doc) return;
+    var hs = doc.querySelectorAll('[data-ed-handle]');
+    for(var i=0;i<hs.length;i++) hs[i].remove();
+  }catch(e){}
+}
+function edResizable(el){
+  if(!el) return false;
+  var doc = frame.contentDocument; if(!doc) return false;
+  if(el===doc.body || el===doc.documentElement) return false;
+  if(el.hasAttribute && el.hasAttribute('data-ed-handle')) return false;
+  return true;
+}
+function edRenderHandles(){
+  var doc = frame.contentDocument; if(!doc) return;
+  edClearHandles();
+  if(selectedEls && selectedEls.length>1) return;
+  var el = selectedEl;
+  if(!edResizable(el)) return;
+  var dirs = [['nw','nwse-resize'],['n','ns-resize'],['ne','nesw-resize'],['e','ew-resize'],['se','nwse-resize'],['s','ns-resize'],['sw','nesw-resize'],['w','ew-resize']];
+  for(var i=0;i<dirs.length;i++){
+    (function(dir,cursor){
+      var h = doc.createElement('div');
+      h.setAttribute('data-ed-handle','1');
+      h.setAttribute('data-ed-dir',dir);
+      h.style.cssText='position:absolute;width:11px;height:11px;background:#3B82F6;border:2px solid #fff;border-radius:2px;box-sizing:border-box;z-index:2147483000;margin:0;padding:0;box-shadow:0 1px 3px rgba(0,0,0,.45);cursor:'+cursor+';';
+      h.addEventListener('mousedown', function(e){ edStartResize(e,dir); }, false);
+      h.addEventListener('click', function(e){ e.stopPropagation(); e.preventDefault(); }, false);
+      h.addEventListener('dblclick', function(e){ e.stopPropagation(); e.preventDefault(); }, false);
+      doc.body.appendChild(h);
+    })(dirs[i][0], dirs[i][1]);
+  }
+  edPositionHandles();
+}
+function edPositionHandles(){
+  var doc = frame.contentDocument; if(!doc || !selectedEl) return;
+  var handles = doc.querySelectorAll('[data-ed-handle]');
+  if(!handles.length) return;
+  var win = frame.contentWindow;
+  var rect = selectedEl.getBoundingClientRect();
+  var sx = win.pageXOffset || 0, sy = win.pageYOffset || 0;
+  var x = rect.left+sx, y = rect.top+sy, w = rect.width, h = rect.height;
+  var pos = { nw:[x,y], n:[x+w/2,y], ne:[x+w,y], e:[x+w,y+h/2], se:[x+w,y+h], s:[x+w/2,y+h], sw:[x,y+h], w:[x,y+h/2] };
+  for(var i=0;i<handles.length;i++){
+    var d = handles[i].getAttribute('data-ed-dir');
+    var p = pos[d]; if(!p) continue;
+    handles[i].style.left = (p[0]-5.5)+'px';
+    handles[i].style.top = (p[1]-5.5)+'px';
+  }
+}
+function edStartResize(e, dir){
+  e.preventDefault(); e.stopPropagation();
+  var el = selectedEl; if(!el) return;
+  var doc = frame.contentDocument, win = frame.contentWindow;
+  var cs = win.getComputedStyle(el);
+  var rect = el.getBoundingClientRect();
+  var isImg = (el.tagName === 'IMG');
+  var ratio = rect.height ? (rect.width/rect.height) : 1;
+  var start = { mx:e.clientX, my:e.clientY, w:rect.width, h:rect.height,
+    left: parseInt(cs.left)||0, top: parseInt(cs.top)||0, pos: cs.position };
+  var west = dir.indexOf('w')>-1, east = dir.indexOf('e')>-1, north = dir.indexOf('n')>-1, south = dir.indexOf('s')>-1;
+  var isCorner = (west||east) && (north||south);
+  function onMove(ev){
+    ev.preventDefault();
+    var dx = ev.clientX - start.mx, dy = ev.clientY - start.my;
+    var newW = start.w, newH = start.h;
+    if(east) newW = start.w + dx;
+    if(west) newW = start.w - dx;
+    if(south) newH = start.h + dy;
+    if(north) newH = start.h - dy;
+    newW = Math.max(8, newW); newH = Math.max(8, newH);
+    if(isImg && isCorner) newH = newW / ratio;
+    if(isImg){
+      el.style.width = Math.round(newW)+'px';
+      el.style.height = Math.round(newH)+'px';
+      el.style.maxWidth = 'none';
+    } else {
+      if(east||west) el.style.width = Math.round(newW)+'px';
+      if(north||south) el.style.height = Math.round(newH)+'px';
+    }
+    if(start.pos === 'absolute'){
+      if(west) el.style.left = Math.round(start.left + (start.w - newW))+'px';
+      if(north) el.style.top = Math.round(start.top + (start.h - newH))+'px';
+    }
+    edPositionHandles();
+    try{ document.getElementById('statusSize').textContent = Math.round(newW)+'×'+Math.round(newH)+'px'; }catch(_){}
+  }
+  function onUp(){
+    doc.removeEventListener('mousemove', onMove, true);
+    doc.removeEventListener('mouseup', onUp, true);
+    pushUndo('크기 조절');
+    if(selectedEl) updatePanel(selectedEl);
+    edRenderHandles();
+  }
+  doc.addEventListener('mousemove', onMove, true);
+  doc.addEventListener('mouseup', onUp, true);
+}
+
+// ---- SHAPES ----
+function edArrowSVG(){
+  return '<svg viewBox="0 0 100 30" preserveAspectRatio="none" style="width:100%;height:100%;display:block;overflow:visible;">'
+    + '<defs><marker id="edArrowHead" markerWidth="12" markerHeight="12" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#111827"/></marker></defs>'
+    + '<line x1="2" y1="15" x2="90" y2="15" stroke="#111827" stroke-width="3" marker-end="url(#edArrowHead)"/></svg>';
+}
+function edInsertShape(kind){
+  var doc = frame.contentDocument; if(!doc) return;
+  var el = doc.createElement('div');
+  el.className = 'ed-shape';
+  el.style.position = 'absolute';
+  el.style.boxSizing = 'border-box';
+  var w=170, h=110;
+  if(kind==='rect'){ el.style.background='#3B82F6'; el.style.border='2px solid #2563EB'; el.style.borderRadius='8px'; w=180; h=110; }
+  else if(kind==='circle'){ el.style.background='#22C55E'; el.style.border='2px solid #16A34A'; el.style.borderRadius='50%'; w=140; h=140; }
+  else if(kind==='line'){ el.style.background='#111827'; w=240; h=3; }
+  else if(kind==='arrow'){ el.style.background='transparent'; el.innerHTML = edArrowSVG(); w=200; h=54; }
+  else if(kind==='textbox'){ el.className='ed-shape ed-textbox'; el.setAttribute('contenteditable','true'); el.textContent='텍스트를 입력하세요'; el.style.border='1px dashed #94A3B8'; el.style.padding='10px 14px'; el.style.minWidth='120px'; el.style.background='rgba(255,255,255,.7)'; el.style.color='#111827'; el.style.font="16px/1.5 'Noto Sans KR',sans-serif"; w=220; h=46; }
+  el.style.width = w+'px';
+  if(kind!=='textbox') el.style.height = h+'px';
+  var wrap = document.getElementById('canvasWrap');
+  var scale = (zoom||100)/100;
+  var cw = frame.offsetWidth || 900;
+  var cx = cw/2;
+  var cy = 80;
+  try{ cy = Math.max(20, (wrap.scrollTop/scale) + (wrap.clientHeight/scale)/2); }catch(_){}
+  el.style.left = Math.round(cx - w/2)+'px';
+  el.style.top = Math.round(cy - h/2)+'px';
+  doc.body.appendChild(el);
+  pushUndo('도형 삽입: '+kind);
+  selectElement(el);
+  showStatus('도형 삽입: '+kind+' (핸들로 크기 조절, 드래그로 이동)');
+}
+
+// ---- INSERT ELEMENTS ----
+function edInsertElement(kind){
+  var doc = frame.contentDocument; if(!doc) return;
+  var node;
+  if(kind==='table'){
+    node = doc.createElement('table');
+    node.setAttribute('border','1');
+    node.style.borderCollapse='collapse';
+    node.style.border='1px solid #999';
+    var cell = 'style="border:1px solid #999;padding:8px 12px;min-width:64px;"';
+    node.innerHTML = '<tbody><tr><td '+cell+'>셀 1</td><td '+cell+'>셀 2</td></tr>'
+      + '<tr><td '+cell+'>셀 3</td><td '+cell+'>셀 4</td></tr></tbody>';
+  } else if(kind==='hr'){
+    node = doc.createElement('hr');
+    node.style.border='none'; node.style.borderTop='2px solid #999'; node.style.margin='16px 0';
+  } else if(kind==='button'){
+    node = doc.createElement('button');
+    node.textContent='버튼';
+    node.style.cssText='padding:10px 20px;background:#3B82F6;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;';
+  } else { return; }
+  if(selectedEl && selectedEl.parentElement){
+    selectedEl.parentElement.insertBefore(node, selectedEl.nextSibling);
+  } else {
+    (doc.querySelector('.reveal .present') || doc.body).appendChild(node);
+  }
+  pushUndo('요소 삽입: '+kind);
+  selectElement(node);
+  try{ scanToggleElements(); }catch(_){}
+}
+
+// ---- STYLE PANEL ----
+function edHex(rgb, fallback){
+  var hx = rgbToHex(rgb);
+  if(!hx || hx.length !== 7) return fallback || '#000000';
+  return hx;
+}
+function edSetStyle(prop, val){
+  if(!selectedEl) return;
+  selectedEl.style[prop] = val;
+  pushUndo('스타일: '+prop);
+  updatePanel(selectedEl);
+  edRenderHandles();
+}
+function edSetBorder(){
+  if(!selectedEl) return;
+  var w = document.getElementById('edcBorderW').value;
+  var c = document.getElementById('edcBorderColor').value;
+  selectedEl.style.border = (w==='0' || !w) ? 'none' : (w+'px solid '+c);
+  pushUndo('테두리 변경');
+  updatePanel(selectedEl);
+  edRenderHandles();
+}
+function edUpdateStylePanel(el){
+  if(!el) return;
+  var cs = frame.contentWindow.getComputedStyle(el);
+  var g = function(id){ return document.getElementById(id); };
+  if(g('edcColor')) g('edcColor').value = edHex(cs.color, '#000000');
+  if(g('edcBg')) g('edcBg').value = edHex(cs.backgroundColor, '#ffffff');
+  if(g('edcFontSize')) g('edcFontSize').value = parseInt(cs.fontSize)||'';
+  if(g('edcWeight')){ var wv=cs.fontWeight; g('edcWeight').value = (wv==='700'||wv==='bold')?'bold':((parseInt(wv)>=800)?'800':'normal'); }
+  if(g('edcAlign')){ var av=cs.textAlign; g('edcAlign').value = (av==='center'||av==='right')?av:'left'; }
+  if(g('edcPad')) g('edcPad').value = parseInt(cs.paddingTop)||0;
+  if(g('edcMargin')) g('edcMargin').value = parseInt(cs.marginTop)||0;
+  if(g('edcRadius')) g('edcRadius').value = parseInt(cs.borderTopLeftRadius)||0;
+  if(g('edcBorderW')){ var bw=parseInt(cs.borderTopWidth)||0; var bs=cs.borderTopStyle; g('edcBorderW').value = (bs==='none'||bw===0)?'0':((bw>=2)?'2':'1'); }
+  if(g('edcBorderColor')) g('edcBorderColor').value = edHex(cs.borderTopColor, '#333333');
+}
+
+// ---- PASTE IMAGE ----
+function edInsertPastedImage(dataUrl){
+  var doc = frame.contentDocument; if(!doc) return;
+  var img = doc.createElement('img');
+  img.src = dataUrl;
+  img.style.display='block'; img.style.maxWidth='100%'; img.style.height='auto';
+  if(selectedEl && selectedEl.parentElement){
+    selectedEl.parentElement.insertBefore(img, selectedEl.nextSibling);
+  } else {
+    (doc.querySelector('.reveal .present') || doc.body).appendChild(img);
+  }
+  pushUndo('이미지 붙여넣기');
+  selectElement(img);
+  showStatus('이미지 붙여넣기 완료');
+}
+document.addEventListener('paste', function(e){
+  if(!frame.contentDocument) return;
+  var ae = document.activeElement;
+  if(ae && (ae.tagName==='INPUT' || ae.tagName==='TEXTAREA')) return;
+  var items = (e.clipboardData && e.clipboardData.items) ? e.clipboardData.items : [];
+  for(var i=0;i<items.length;i++){
+    if(items[i].type && items[i].type.indexOf('image')===0){
+      var file = items[i].getAsFile();
+      if(!file) continue;
+      var reader = new FileReader();
+      reader.onload = function(){ edInsertPastedImage(reader.result); };
+      reader.readAsDataURL(file);
+      e.preventDefault();
+      return;
+    }
+  }
+});
+
+// ---- URL LOAD ----
+function edShowUrlModal(){ document.getElementById('urlModal').classList.add('show'); setTimeout(function(){ var i=document.getElementById('urlInput'); if(i) i.focus(); }, 50); }
+function edCloseUrlModal(){ document.getElementById('urlModal').classList.remove('show'); }
+async function edLoadUrl(){
+  var url = (document.getElementById('urlInput').value||'').trim();
+  if(!url) return;
+  if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  try{
+    showStatus('URL 불러오는 중...');
+    var resp = await fetch(url);
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    var text = await resp.text();
+    var name = url.split('/').pop() || 'url.html';
+    if(name.indexOf('.')<0) name += '.html';
+    edCloseUrlModal();
+    loadHTML(text, name);
+    showStatus('URL 로드 완료: '+name);
+  }catch(err){
+    alert('URL을 불러오지 못했습니다.\n\n대부분 CORS 정책 때문입니다. 브라우저 보안상, 다른 도메인의 HTML을 직접 가져오려면 그 서버가 CORS(Access-Control-Allow-Origin)를 허용해야 합니다.\n\n해결 방법\n  - 같은 도메인(GitHub Pages 등)에 올린 파일을 사용하세요.\n  - 또는 파일을 내려받은 뒤 [열기] 버튼으로 여세요.\n\n(오류: '+err.message+')');
+    showStatus('URL 로드 실패');
+  }
+}
+
+// ---- EXPORT ----
+function edToggleExportMenu(e){ if(e){ e.stopPropagation(); } var m=document.getElementById('edExportMenu'); if(m) m.classList.toggle('show'); }
+document.addEventListener('click', function(e){
+  var inside = e.target.closest ? e.target.closest('.ed-export-wrap') : null;
+  if(!inside){ var m=document.getElementById('edExportMenu'); if(m) m.classList.remove('show'); }
+});
+function edExportPDF(){
+  var m=document.getElementById('edExportMenu'); if(m) m.classList.remove('show');
+  if(!currentFile){ alert('먼저 HTML 파일을 열어주세요.'); return; }
+  var html = getEditedHTML();
+  var w = window.open('', '_blank');
+  if(!w){ alert('팝업이 차단되었습니다. 팝업을 허용한 뒤 다시 시도하세요.'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+  setTimeout(function(){ try{ w.focus(); w.print(); }catch(_){} }, 700);
+  showStatus('PDF 내보내기: 인쇄 창에서 "PDF로 저장"을 선택하세요');
+}
+function edExportPNG(){
+  var m=document.getElementById('edExportMenu'); if(m) m.classList.remove('show');
+  if(!currentFile){ alert('먼저 HTML 파일을 열어주세요.'); return; }
+  if(typeof html2canvas === 'undefined'){ alert('html2canvas를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.'); return; }
+  var doc = frame.contentDocument; if(!doc) return;
+  edClearHandles();
+  try{ removeGuides(doc); }catch(_){}
+  showStatus('PNG 생성 중...');
+  html2canvas(doc.body, { backgroundColor:'#ffffff', useCORS:true, scale:2, logging:false }).then(function(canvas){
+    var a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = (currentFile ? currentFile.replace(/\.html?$/i,'') : 'export') + '.png';
+    a.click();
+    showStatus('PNG 저장 완료');
+    edRenderHandles();
+  }).catch(function(err){ alert('PNG 생성 실패: '+err.message); edRenderHandles(); });
+}
+
+// ---- keep handles aligned on scroll ----
+(function(){
+  var wrap = document.getElementById('canvasWrap');
+  if(wrap) wrap.addEventListener('scroll', function(){ try{ edPositionHandles(); }catch(_){} }, { passive:true });
+})();
+
+// ===== KEYBOARD SHORTCUTS =====
+document.addEventListener('keydown', (e) => {
+  const isMac = navigator.platform.includes('Mac');
+  const mod = isMac ? e.metaKey : e.ctrlKey;
+
+  if (mod && e.key === 'o') { e.preventDefault(); openFile(); }
+  if (mod && e.key === 's') { e.preventDefault(); saveFile(); }
+  if (mod && e.key === 'z' && !e.shiftKey) { e.preventDefault(); doUndo(); }
+  if (mod && e.key === 'z' && e.shiftKey) { e.preventDefault(); doRedo(); }
+  if (mod && e.key === 'y') { e.preventDefault(); doRedo(); }
+  if (e.key === 'v' && !mod && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT') { setMode('select'); }
+  if (e.key === 't' && !mod && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT') { setMode('edit'); }
+  if (e.key === 'Delete' && selectedEl && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT') { deleteSelected(); }
+  if (e.key === 'Escape') { deselectAll(); }
+  if (e.key === 'PageDown') { e.preventDefault(); slideGo(1); }
+  if (e.key === 'PageUp') { e.preventDefault(); slideGo(-1); }
+});
+
+// ===== INIT =====
+setZoom(0);
+setupCanvasDragDrop();
+</script>
+</body>
+</html>
