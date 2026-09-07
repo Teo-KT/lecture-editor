@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HTML Visual Editor v3.1.2</title>
+<title>HTML Visual Editor v3.2</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 :root{
@@ -117,6 +117,39 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:
 }
 .prop-textarea:focus{outline:none;border-color:var(--bl);}
 
+/* ===== v3.2: tidy sidebar, quick actions, context menu ===== */
+.tool-sep{width:1px;height:20px;background:var(--bg3);margin:0 3px;}
+.tool-hint{font-size:10px;color:var(--tx3);white-space:nowrap;margin-left:auto;border-right:none;}
+.quick-actions{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px;}
+.qa{height:26px;padding:0 9px;border-radius:5px;border:1px solid var(--bg4);background:var(--bg3);color:var(--tx2);font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap;}
+.qa:hover{border-color:var(--bl);color:var(--tx);}
+.qa-danger:hover{border-color:var(--rs);color:var(--rs);}
+.qa-mini{width:26px;padding:0;flex:0 0 26px;font-size:13px;}
+.align-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;flex:1;}
+.align-grid .qa{padding:0;justify-self:stretch;}
+.psec{border-bottom:1px solid var(--bg3);}
+.psec > summary{list-style:none;cursor:pointer;padding:10px 16px;font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:0.06em;display:flex;align-items:center;gap:6px;user-select:none;}
+.psec > summary::-webkit-details-marker{display:none;}
+.psec > summary::before{content:'▸';font-size:10px;color:var(--tx3);transition:transform 0.12s;}
+.psec[open] > summary::before{transform:rotate(90deg);}
+.psec > summary:hover{color:var(--tx);}
+.psec-body{padding:2px 16px 12px;}
+.psec-body .prop-row{margin-bottom:7px;}
+.prop-label{min-width:52px;white-space:nowrap;}
+.psec-body .prop-input{min-width:0;}
+.psec-body .prop-row > .prop-label + .prop-input + .prop-label{margin-left:4px;}
+.psec-body input[type=range].prop-input{flex:1 1 60px;height:20px;border:none;background:transparent;}
+.ctx-menu{position:fixed;z-index:400;min-width:210px;background:var(--bg2);border:1px solid var(--bg3);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,0.5);padding:4px;font-size:12px;color:var(--tx2);}
+.ctx-item{position:relative;display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:5px;cursor:pointer;white-space:nowrap;}
+.ctx-item:hover{background:var(--bg3);color:var(--tx);}
+.ctx-item.disabled{opacity:0.35;cursor:default;}
+.ctx-item.disabled:hover{background:transparent;color:var(--tx2);}
+.ctx-item .ctx-key{margin-left:auto;font-size:10px;color:var(--tx3);font-family:'SF Mono','Consolas',monospace;padding-left:14px;}
+.ctx-item .ctx-arrow{margin-left:auto;font-size:10px;color:var(--tx3);padding-left:14px;}
+.ctx-sep{height:1px;background:var(--bg3);margin:4px 6px;}
+.ctx-sub{display:none;position:absolute;left:calc(100% - 4px);top:-5px;min-width:180px;background:var(--bg2);border:1px solid var(--bg3);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,0.5);padding:4px;}
+.ctx-item.has-sub:hover > .ctx-sub{display:block;}
+.ctx-menu.flip-sub .ctx-sub{left:auto;right:calc(100% - 4px);}
 /* Element path (ancestor chain) */
 .el-path{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;}
 .el-path button{font-family:'SF Mono','Consolas',monospace;font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid var(--bg4);background:var(--bg3);color:var(--tx2);cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -312,7 +345,7 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:
 
 <!-- ===== TOP BAR ===== -->
 <div class="topbar">
-  <div class="logo">HTML Visual Editor <span>v3.1.2</span></div>
+  <div class="logo">HTML Visual Editor <span>v3.2</span></div>
   <div class="sep"></div>
   <button class="btn" onclick="openFile()" title="Ctrl/Cmd+O">📂 열기</button>
   <button class="btn btn-success" onclick="saveFile()" title="Ctrl/Cmd+S">💾 저장</button>
@@ -350,105 +383,43 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:
 <!-- ===== TOOLBAR ===== -->
 <div class="toolbar">
   <div class="tool-group">
-    <span class="tool-label">선택</span>
+    <span class="tool-label">모드</span>
     <button class="tbtn active" id="btnSelect" onclick="setMode('select')" title="선택 모드 (V)">🖱</button>
     <button class="tbtn" id="btnEdit" onclick="setMode('edit')" title="텍스트 편집 모드 (T)">✏️</button>
   </div>
   <div class="tool-group">
-    <span class="tool-label">글꼴</span>
-    <select class="tool-select" id="fontFamily" onchange="applyStyle('fontFamily',this.value)">
-      <option value="">원본 유지</option>
-      <option value="'FS', sans-serif">Freesentation</option>
-      <option value="-apple-system, 'Segoe UI', sans-serif">시스템 폰트</option>
-      <option value="Georgia, serif">Georgia</option>
-      <option value="'Courier New', monospace">Courier New</option>
-    </select>
-    <select class="tool-select" id="fontSize" onchange="applyStyle('fontSize',this.value)">
-      <option value="">크기</option>
-      <option value="10px">10</option>
-      <option value="12px">12</option>
-      <option value="14px">14</option>
-      <option value="16px">16</option>
-      <option value="18px">18</option>
-      <option value="20px">20</option>
-      <option value="24px">24</option>
-      <option value="28px">28</option>
-      <option value="32px">32</option>
-      <option value="36px">36</option>
-      <option value="42px">42</option>
-      <option value="48px">48</option>
-      <option value="56px">56</option>
-      <option value="64px">64</option>
-    </select>
-  </div>
-  <div class="tool-group">
-    <span class="tool-label">스타일</span>
-    <button class="tbtn" onclick="applyStyle('fontWeight','bold')" title="굵게 (Ctrl+B)"><b>B</b></button>
-    <button class="tbtn" onclick="applyStyle('fontStyle','italic')" title="기울임 (Ctrl+I)"><i>I</i></button>
-    <button class="tbtn" onclick="applyStyle('textDecoration','underline')" title="밑줄"><u>U</u></button>
-  </div>
-  <div class="tool-group">
-    <span class="tool-label">정렬</span>
-    <button class="tbtn" onclick="applyStyle('textAlign','left')" title="왼쪽">☰</button>
-    <button class="tbtn" onclick="applyStyle('textAlign','center')" title="가운데">☰</button>
-    <button class="tbtn" onclick="applyStyle('textAlign','right')" title="오른쪽">☰</button>
-  </div>
-  <div class="tool-group">
-    <span class="tool-label">글자색</span>
-    <input type="color" class="color-input" id="textColor" value="#1C1C1A" onchange="applyStyle('color',this.value)">
-    <span class="tool-label">배경색</span>
-    <input type="color" class="color-input" id="bgColor" value="#FFFFFF" onchange="applyStyle('backgroundColor',this.value)">
-  </div>
-  <div class="tool-group">
-    <span class="tool-label">간격</span>
-    <select class="tool-select" id="lineHeight" onchange="applyStyle('lineHeight',this.value)">
-      <option value="">줄 간격</option>
-      <option value="1">1.0</option>
-      <option value="1.2">1.2</option>
-      <option value="1.4">1.4</option>
-      <option value="1.6">1.6</option>
-      <option value="1.8">1.8</option>
-      <option value="2">2.0</option>
-      <option value="2.2">2.2</option>
-    </select>
-    <select class="tool-select" id="padding" onchange="applyStyle('padding',this.value)">
-      <option value="">패딩</option>
-      <option value="0px">0</option>
-      <option value="4px">4</option>
-      <option value="8px">8</option>
-      <option value="12px">12</option>
-      <option value="16px">16</option>
-      <option value="24px">24</option>
-      <option value="32px">32</option>
-    </select>
-  </div>
-  <div class="tool-group">
-    <span class="tool-label">위치</span>
-    <button class="tbtn" onclick="resetPosition()" title="위치 초기화">⊙</button>
-  </div>
-  <div class="tool-group">
     <span class="tool-label">삽입</span>
-    <button class="tbtn" onclick="showImageModal()" title="이미지 삽입">🖼</button>
-    <button class="tbtn" onclick="insertHTML()" title="HTML 삽입">＋</button>
-  </div>
-  <div class="tool-group">
-    <span class="tool-label">도형</span>
     <button class="tbtn" onclick="edInsertShape('rect')" title="사각형">▭</button>
     <button class="tbtn" onclick="edInsertShape('circle')" title="원">●</button>
     <button class="tbtn" onclick="edInsertShape('line')" title="선">─</button>
     <button class="tbtn" onclick="edInsertShape('arrow')" title="화살표">➔</button>
     <button class="tbtn" onclick="edInsertShape('textbox')" title="텍스트박스">🅴</button>
-  </div>
-  <div class="tool-group">
-    <span class="tool-label">요소</span>
+    <span class="tool-sep"></span>
+    <button class="tbtn" onclick="showImageModal()" title="이미지 삽입">🖼</button>
     <button class="tbtn" onclick="edInsertElement('table')" title="표 (2x2)">▦</button>
     <button class="tbtn" onclick="edInsertElement('hr')" title="구분선">═</button>
     <button class="tbtn" onclick="edInsertElement('button')" title="버튼">🔘</button>
+    <button class="tbtn" onclick="insertHTML()" title="HTML 코드 삽입">＋</button>
   </div>
   <div class="tool-group">
+    <span class="tool-label">서식</span>
+    <button class="tbtn" onclick="applyStyle('fontWeight','bold')" title="굵게"><b>B</b></button>
+    <button class="tbtn" onclick="applyStyle('fontStyle','italic')" title="기울임"><i>I</i></button>
+    <button class="tbtn" onclick="applyStyle('textDecoration','underline')" title="밑줄"><u>U</u></button>
+    <span class="tool-sep"></span>
+    <button class="tbtn" onclick="applyStyle('textAlign','left')" title="왼쪽 정렬">⇤</button>
+    <button class="tbtn" onclick="applyStyle('textAlign','center')" title="가운데 정렬">☰</button>
+    <button class="tbtn" onclick="applyStyle('textAlign','right')" title="오른쪽 정렬">⇥</button>
+  </div>
+  <div class="tool-group">
+    <span class="tool-label">선택·배치</span>
     <button class="tbtn" onclick="selectParent()" title="바깥(부모) 요소 선택 (Alt+↑)">⬆</button>
-    <button class="tbtn" onclick="deleteSelected()" title="선택 요소 삭제 (Del)">🗑</button>
-    <button class="tbtn" onclick="duplicateSelected()" title="복제">📋</button>
+    <button class="tbtn" onclick="selectAll('slide')" title="슬라이드(문서) 전체 선택 (⌘/Ctrl+A)">⧉</button>
+    <button class="tbtn" onclick="duplicateSelected()" title="복제 (⌘/Ctrl+D)">📋</button>
+    <button class="tbtn" onclick="arrangeSelected('front')" title="맨 앞으로 가져오기">⬒</button>
+    <button class="tbtn" onclick="arrangeSelected('back')" title="맨 뒤로 보내기">⬓</button>
+    <button class="tbtn" onclick="resetPosition()" title="위치 초기화">⊙</button>
+    <button class="tbtn" onclick="deleteSelected()" title="삭제 (Del)">🗑</button>
   </div>
   <div class="tool-group" id="toggleToolGroup" style="display:none;">
     <span class="tool-label">토글</span>
@@ -456,6 +427,7 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:
     <button class="tbtn" onclick="collapseAllToggles()" title="모두 접기">▶</button>
     <span class="toggle-badge" id="toggleBadge" title="토글 요소 수">0</span>
   </div>
+  <div class="tool-group tool-hint">우클릭: 삽입·선택·배치 메뉴</div>
 </div>
 
 <!-- ===== MAIN ===== -->
@@ -474,7 +446,7 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:
     </div>
     <div id="welcomeScreen" class="welcome">
       <h2>HTML Visual Editor <span style="color:var(--bl);font-weight:400;">v3</span></h2>
-      <p>HTML 파일을 열어서 시각적으로 편집하세요.<br>텍스트, 색상, 크기, 간격 등을 직접 수정하고 저장할 수 있습니다.<br><br><b style="color:var(--am);">✨ NEW</b> — 토글(details/summary) 요소를 펼치고 접어 내부 콘텐츠도 편집 가능!<br><b style="color:var(--pr);">🆕 v3</b> 도형 삽입 · 8방향 리사이즈 핸들 · 스타일 패널 · URL 열기 · PDF/PNG 내보내기<br><b style="color:var(--gn);">☁ v3.1</b> 슬라이드 순서 변경(드래그) · 구글 드라이브에서 열기/저장</p>
+      <p>HTML 파일을 열어서 시각적으로 편집하세요.<br>텍스트, 색상, 크기, 간격 등을 직접 수정하고 저장할 수 있습니다.<br><br><b style="color:var(--am);">✨ NEW</b> — 토글(details/summary) 요소를 펼치고 접어 내부 콘텐츠도 편집 가능!<br><b style="color:var(--pr);">🆕 v3</b> 도형 삽입 · 8방향 리사이즈 핸들 · 스타일 패널 · URL 열기 · PDF/PNG 내보내기<br><b style="color:var(--gn);">☁ v3.1</b> 슬라이드 순서 변경(드래그) · 구글 드라이브에서 열기/저장<br><b style="color:var(--am);">🖱 v3.2</b> 우클릭 메뉴(도형·삽입·전체 선택·복사/붙여넣기·배치·정렬) · 정돈된 사이드바</p>
       <div style="display:flex;gap:8px;">
         <button class="btn btn-primary" onclick="openFile()" style="font-size:14px;padding:10px 24px;">📂 HTML 파일 열기</button>
         <button class="btn" onclick="edDrive.open()" style="font-size:14px;padding:10px 24px;">☁ 드라이브에서 열기</button>
@@ -491,7 +463,11 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:
         <kbd class="kbd">Shift+←→↑↓</kbd> 10px 이동 &nbsp;
         <kbd class="kbd">드래그</kbd> 자유 이동<br>
         <kbd class="kbd">더블클릭</kbd> 토글 펼치기/접기 &nbsp;
-        <kbd class="kbd">Alt+↑</kbd> 바깥(부모) 요소 선택
+        <kbd class="kbd">Alt+↑</kbd> 바깥(부모) 요소 선택 &nbsp;
+        <kbd class="kbd">⌘A</kbd> 전체 선택 &nbsp;
+        <kbd class="kbd">⌘D</kbd> 복제 &nbsp;
+        <kbd class="kbd">⌘C/V</kbd> 복사/붙여넣기 &nbsp;
+        <kbd class="kbd">우클릭</kbd> 메뉴
       </div>
     </div>
     <div class="canvas-frame" id="canvasFrame" style="display:none;">
@@ -502,10 +478,150 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:
   <!-- Right Panel -->
   <div class="panel" id="panel">
     <div class="panel-section">
-      <h3>선택된 요소</h3>
-      <div class="el-info" id="elInfo">선택 없음</div>
+      <h3>선택</h3>
+      <div class="el-info" id="elInfo">선택 없음 · 캔버스에서 요소를 클릭하세요</div>
       <div class="el-path" id="elPath"></div>
-      <p class="el-hint" id="elHint" style="display:none;">💡 글상자를 클릭하면 안쪽 글자 요소가 잡힙니다. 상자 자체를 늘이거나 옮기려면 위 경로에서 바깥 요소를 고르거나 <kbd class="kbd">Alt+↑</kbd>를 누르세요.</p>
+      <p class="el-hint" id="elHint" style="display:none;">💡 글자 요소가 잡혔습니다. 상자 자체를 늘이거나 옮기려면 위 경로에서 바깥 요소를 고르거나 <kbd class="kbd">Alt+↑</kbd>를 누르세요.</p>
+      <div class="quick-actions" id="quickActions">
+        <button class="qa" onclick="selectParent()" title="Alt+↑">⬆ 바깥</button>
+        <button class="qa" onclick="selectAll('siblings')" title="같은 상자 안 요소 모두 선택">⧉ 같이 선택</button>
+        <button class="qa" onclick="duplicateSelected()" title="⌘/Ctrl+D">📋 복제</button>
+        <button class="qa qa-danger" onclick="deleteSelected()" title="Del">🗑 삭제</button>
+      </div>
+    </div>
+
+    <!-- Selection-dependent sections (shown when an element is selected) -->
+    <div id="propSection" style="display:none;">
+      <details class="psec" id="secFill" open>
+        <summary>채우기 · 테두리</summary>
+        <div class="psec-body">
+          <div class="prop-row">
+            <span class="prop-label">배경색</span>
+            <input type="color" class="color-input" id="propBg" onchange="setProp('backgroundColor',this.value);document.getElementById('propBgText').value=this.value;">
+            <input class="prop-input" id="propBgText" placeholder="transparent" onchange="setProp('backgroundColor',this.value)">
+            <button class="qa qa-mini" onclick="setProp('backgroundColor','transparent')" title="배경 없음">×</button>
+          </div>
+          <div class="prop-row">
+            <span class="prop-label">테두리</span>
+            <select class="prop-input" id="edcBorderW" onchange="edSetBorder()" style="padding:0 4px;flex:0 0 64px;">
+              <option value="0">없음</option>
+              <option value="1">1px</option>
+              <option value="2">2px</option>
+              <option value="3">3px</option>
+              <option value="4">4px</option>
+              <option value="6">6px</option>
+              <option value="8">8px</option>
+            </select>
+            <select class="prop-input" id="edcBorderStyle" onchange="edSetBorder()" style="padding:0 4px;">
+              <option value="solid">실선</option>
+              <option value="dashed">파선</option>
+              <option value="dotted">점선</option>
+              <option value="double">이중선</option>
+            </select>
+          </div>
+          <div class="prop-row">
+            <span class="prop-label">테두리색</span>
+            <input type="color" class="color-input" id="edcBorderColor" value="#333333" onchange="document.getElementById('edcBorderColorText').value=this.value;edSetBorder()">
+            <input class="prop-input" id="edcBorderColorText" placeholder="#333333" onchange="document.getElementById('edcBorderColor').value=this.value;edSetBorder()">
+          </div>
+          <div class="prop-row">
+            <span class="prop-label">둥글기</span>
+            <input class="prop-input" id="propRadius" placeholder="0px" onchange="setProp('borderRadius',this.value)">
+            <span class="prop-label" style="min-width:auto;">투명도</span>
+            <input class="prop-input" id="propOpacity" type="range" min="0" max="1" step="0.05" value="1" onchange="setProp('opacity',this.value)" style="padding:0;">
+          </div>
+        </div>
+      </details>
+
+      <details class="psec" id="stylePanel" open>
+        <summary>글자</summary>
+        <div class="psec-body">
+          <div class="prop-row">
+            <span class="prop-label">글꼴</span>
+            <select class="prop-input" id="edcFont" onchange="setProp('fontFamily',this.value)" style="padding:0 4px;">
+              <option value="">원본 유지</option>
+              <option value="'Noto Sans KR',sans-serif">Noto Sans KR</option>
+              <option value="'FS', sans-serif">Freesentation</option>
+              <option value="'Inter',sans-serif">Inter</option>
+              <option value="-apple-system,'Segoe UI',sans-serif">시스템 폰트</option>
+              <option value="Georgia,'Times New Roman',serif">명조(serif)</option>
+              <option value="'Courier New',monospace">고정폭</option>
+            </select>
+          </div>
+          <div class="prop-row">
+            <span class="prop-label">크기</span>
+            <input class="prop-input" id="propFS" placeholder="16px" onchange="setProp('fontSize',/^\d+(\.\d+)?$/.test(this.value.trim())?this.value.trim()+'px':this.value)">
+            <span class="prop-label" style="min-width:auto;">줄간격</span>
+            <input class="prop-input" id="propLH" placeholder="1.6" onchange="setProp('lineHeight',this.value)">
+          </div>
+          <div class="prop-row">
+            <span class="prop-label">굵기</span>
+            <select class="prop-input" id="edcWeight" onchange="setProp('fontWeight',this.value)" style="padding:0 4px;">
+              <option value="300">가늘게</option>
+              <option value="normal">보통</option>
+              <option value="600">약간 굵게</option>
+              <option value="bold">굵게</option>
+              <option value="800">아주 굵게</option>
+            </select>
+            <span class="prop-label" style="min-width:auto;">정렬</span>
+            <select class="prop-input" id="edcAlign" onchange="setProp('textAlign',this.value)" style="padding:0 4px;">
+              <option value="left">왼쪽</option>
+              <option value="center">가운데</option>
+              <option value="right">오른쪽</option>
+              <option value="justify">양쪽</option>
+            </select>
+          </div>
+          <div class="prop-row">
+            <span class="prop-label">글자색</span>
+            <input type="color" class="color-input" id="propColor" onchange="setProp('color',this.value);document.getElementById('propColorText').value=this.value;">
+            <input class="prop-input" id="propColorText" placeholder="#000" onchange="setProp('color',this.value)">
+          </div>
+        </div>
+      </details>
+
+      <details class="psec" id="secBox">
+        <summary>위치 · 크기 · 여백</summary>
+        <div class="psec-body">
+          <div class="prop-row">
+            <span class="prop-label">X</span>
+            <input class="prop-input" id="propLeft" placeholder="0px" onchange="setProp('left',this.value)">
+            <span class="prop-label" style="min-width:auto;">Y</span>
+            <input class="prop-input" id="propTop" placeholder="0px" onchange="setProp('top',this.value)">
+          </div>
+          <div class="prop-row">
+            <span class="prop-label">너비</span>
+            <input class="prop-input" id="propW" placeholder="auto" onchange="setProp('width',this.value)">
+            <span class="prop-label" style="min-width:auto;">높이</span>
+            <input class="prop-input" id="propH" placeholder="auto" onchange="setProp('height',this.value)">
+          </div>
+          <div class="prop-row">
+            <span class="prop-label">배치</span>
+            <select class="prop-input" id="propPos" onchange="setProp('position',this.value)" style="padding:0 4px;">
+              <option value="static">흐름(static)</option>
+              <option value="relative">상대(relative)</option>
+              <option value="absolute">자유(absolute)</option>
+              <option value="fixed">고정(fixed)</option>
+            </select>
+          </div>
+          <div class="prop-row">
+            <span class="prop-label">안쪽여백</span>
+            <input class="prop-input" id="propP" placeholder="0px" onchange="setProp('padding',this.value)">
+            <span class="prop-label" style="min-width:auto;">바깥여백</span>
+            <input class="prop-input" id="propM" placeholder="0px" onchange="setProp('margin',this.value)">
+          </div>
+          <div class="prop-row" style="margin-top:4px;">
+            <span class="prop-label">정렬</span>
+            <div class="align-grid">
+              <button class="qa" onclick="alignSelected('left')" title="부모 왼쪽에 맞춤">⇤</button>
+              <button class="qa" onclick="alignSelected('hcenter')" title="가로 가운데">↔</button>
+              <button class="qa" onclick="alignSelected('right')" title="부모 오른쪽에 맞춤">⇥</button>
+              <button class="qa" onclick="alignSelected('top')" title="부모 위에 맞춤">⤒</button>
+              <button class="qa" onclick="alignSelected('vcenter')" title="세로 가운데">↕</button>
+              <button class="qa" onclick="alignSelected('bottom')" title="부모 아래에 맞춤">⤓</button>
+            </div>
+          </div>
+        </div>
+      </details>
     </div>
 
     <!-- Slide order (shown for reveal.js / 1920x1080 decks) -->
@@ -540,144 +656,23 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:
       </p>
     </div>
 
-    <div class="panel-section" id="propSection" style="display:none;">
-      <h3>속성 편집</h3>
-      <div class="prop-row">
-        <span class="prop-label">위치 X</span>
-        <input class="prop-input" id="propLeft" placeholder="0px" onchange="setProp('left',this.value)">
+    <details class="psec" id="secAdv">
+      <summary>고급 (텍스트·CSS 직접 편집, 편집 이력)</summary>
+      <div class="psec-body">
+        <div class="prop-label" style="margin-bottom:4px;">텍스트 직접 편집</div>
+        <textarea class="prop-textarea" id="textEdit" placeholder="요소를 선택하면 텍스트를 편집할 수 있습니다." oninput="updateText()"></textarea>
+        <div class="prop-label" style="margin:10px 0 4px;">CSS 직접 입력</div>
+        <textarea class="prop-textarea" id="cssEdit" placeholder="예: font-size: 20px; color: red;" onchange="applyRawCSS()"></textarea>
+        <button class="btn" onclick="applyRawCSS()" style="margin-top:6px;width:100%;justify-content:center;">CSS 적용</button>
+        <div class="prop-label" style="margin:12px 0 4px;">편집 이력 (최근 20개)</div>
+        <div id="historyList" style="max-height:160px;overflow-y:auto;"></div>
       </div>
-      <div class="prop-row">
-        <span class="prop-label">위치 Y</span>
-        <input class="prop-input" id="propTop" placeholder="0px" onchange="setProp('top',this.value)">
-      </div>
-      <div class="prop-row">
-        <span class="prop-label">position</span>
-        <select class="prop-input" id="propPos" onchange="setProp('position',this.value)" style="padding:0 4px;">
-          <option value="static">static</option>
-          <option value="relative">relative</option>
-          <option value="absolute">absolute</option>
-          <option value="fixed">fixed</option>
-        </select>
-      </div>
-      <div class="prop-row">
-        <span class="prop-label">너비</span>
-        <input class="prop-input" id="propW" placeholder="auto" onchange="setProp('width',this.value)">
-      </div>
-      <div class="prop-row">
-        <span class="prop-label">높이</span>
-        <input class="prop-input" id="propH" placeholder="auto" onchange="setProp('height',this.value)">
-      </div>
-      <div class="prop-row">
-        <span class="prop-label">마진</span>
-        <input class="prop-input" id="propM" placeholder="0px" onchange="setProp('margin',this.value)">
-      </div>
-      <div class="prop-row">
-        <span class="prop-label">패딩</span>
-        <input class="prop-input" id="propP" placeholder="0px" onchange="setProp('padding',this.value)">
-      </div>
-      <div class="prop-row">
-        <span class="prop-label">테두리</span>
-        <input class="prop-input" id="propBorder" placeholder="none" onchange="setProp('border',this.value)">
-      </div>
-      <div class="prop-row">
-        <span class="prop-label">둥글기</span>
-        <input class="prop-input" id="propRadius" placeholder="0px" onchange="setProp('borderRadius',this.value)">
-      </div>
-      <div class="prop-row">
-        <span class="prop-label">글자색</span>
-        <input type="color" class="color-input" id="propColor" onchange="setProp('color',this.value)">
-        <input class="prop-input" id="propColorText" placeholder="#000" onchange="setProp('color',this.value);document.getElementById('propColor').value=this.value;">
-      </div>
-      <div class="prop-row">
-        <span class="prop-label">배경색</span>
-        <input type="color" class="color-input" id="propBg" onchange="setProp('backgroundColor',this.value)">
-        <input class="prop-input" id="propBgText" placeholder="#fff" onchange="setProp('backgroundColor',this.value);document.getElementById('propBg').value=this.value;">
-      </div>
-      <div class="prop-row">
-        <span class="prop-label">글자 크기</span>
-        <input class="prop-input" id="propFS" placeholder="16px" onchange="setProp('fontSize',this.value)">
-      </div>
-      <div class="prop-row">
-        <span class="prop-label">줄 간격</span>
-        <input class="prop-input" id="propLH" placeholder="1.6" onchange="setProp('lineHeight',this.value)">
-      </div>
-      <div class="prop-row">
-        <span class="prop-label">투명도</span>
-        <input class="prop-input" id="propOpacity" type="range" min="0" max="1" step="0.05" value="1" onchange="setProp('opacity',this.value)">
-      </div>
-    </div>
-
-    <div class="panel-section" id="stylePanel" style="display:none;">
-      <h3>스타일 <span style="font-size:10px;font-weight:400;color:var(--tx3);">(선택 요소에 즉시 적용)</span></h3>
-      <p style="font-size:10px;color:var(--tx3);margin:-4px 0 10px;line-height:1.5;">💡 요소 선택 → 8방향 핸들로 크기 조절 · 드래그로 이동 · 아래에서 색·글꼴·여백·테두리 편집</p>
-      <div class="prop-row">
-        <span class="prop-label">글자색</span>
-        <input type="color" class="color-input" id="edcColor" onchange="edSetStyle('color',this.value)">
-        <span class="prop-label">배경색</span>
-        <input type="color" class="color-input" id="edcBg" onchange="edSetStyle('backgroundColor',this.value)">
-      </div>
-      <div class="prop-row">
-        <span class="prop-label">글자크기</span>
-        <input class="prop-input" id="edcFontSize" type="number" placeholder="16" onchange="edSetStyle('fontSize',this.value+'px')">
-        <span class="prop-label">폰트</span>
-        <select class="prop-input" id="edcFont" onchange="edSetStyle('fontFamily',this.value)" style="padding:0 4px;">
-          <option value="">기본</option>
-          <option value="'Noto Sans KR',sans-serif">Noto Sans KR</option>
-          <option value="'Inter',sans-serif">Inter</option>
-          <option value="Georgia,'Times New Roman',serif">serif</option>
-          <option value="'Courier New',monospace">monospace</option>
-        </select>
-      </div>
-      <div class="prop-row">
-        <span class="prop-label">굵기</span>
-        <select class="prop-input" id="edcWeight" onchange="edSetStyle('fontWeight',this.value)" style="padding:0 4px;">
-          <option value="normal">normal</option>
-          <option value="bold">bold</option>
-          <option value="800">800</option>
-        </select>
-        <span class="prop-label">정렬</span>
-        <select class="prop-input" id="edcAlign" onchange="edSetStyle('textAlign',this.value)" style="padding:0 4px;">
-          <option value="left">왼쪽</option>
-          <option value="center">가운데</option>
-          <option value="right">오른쪽</option>
-        </select>
-      </div>
-      <div class="prop-row">
-        <span class="prop-label">안쪽여백</span>
-        <input class="prop-input" id="edcPad" type="number" placeholder="0" onchange="edSetStyle('padding',this.value+'px')">
-        <span class="prop-label">바깥여백</span>
-        <input class="prop-input" id="edcMargin" type="number" placeholder="0" onchange="edSetStyle('margin',this.value+'px')">
-      </div>
-      <div class="prop-row">
-        <span class="prop-label">모서리</span>
-        <input class="prop-input" id="edcRadius" type="number" placeholder="0" onchange="edSetStyle('borderRadius',this.value+'px')">
-        <span class="prop-label">테두리</span>
-        <select class="prop-input" id="edcBorderW" onchange="edSetBorder()" style="padding:0 4px;">
-          <option value="0">없음</option>
-          <option value="1">1px</option>
-          <option value="2">2px</option>
-        </select>
-        <input type="color" class="color-input" id="edcBorderColor" value="#333333" onchange="edSetBorder()">
-      </div>
-    </div>
-
-    <div class="panel-section">
-      <h3>텍스트 직접 편집</h3>
-      <textarea class="prop-textarea" id="textEdit" placeholder="요소를 선택하면 텍스트를 편집할 수 있습니다." oninput="updateText()"></textarea>
-    </div>
-
-    <div class="panel-section">
-      <h3>CSS 직접 입력</h3>
-      <textarea class="prop-textarea" id="cssEdit" placeholder="예: font-size: 20px; color: red;" onchange="applyRawCSS()"></textarea>
-      <button class="btn" onclick="applyRawCSS()" style="margin-top:6px;width:100%;justify-content:center;">적용</button>
-    </div>
-
-    <div class="panel-section">
-      <h3>편집 이력 <span style="font-size:10px;font-weight:400;color:var(--tx3);">(최근 20개)</span></h3>
-      <div id="historyList" style="max-height:200px;overflow-y:auto;"></div>
-    </div>
+    </details>
   </div>
 </div>
+
+<!-- ===== CONTEXT MENU (canvas right-click) ===== -->
+<div class="ctx-menu" id="ctxMenu" style="display:none;"></div>
 
 <!-- ===== STATUS BAR ===== -->
 <div class="statusbar">
@@ -1702,10 +1697,14 @@ function setupIframeListeners() {
     if (mod && e.key === 'z' && !e.shiftKey) doUndo();
     if (mod && e.key === 'z' && e.shiftKey) doRedo();
     if (mod && e.key === 'y') doRedo();
+    if (mod && (e.key === 'a' || e.key === 'A')) { selectAll('slide'); return; }
+    if (mod && (e.key === 'd' || e.key === 'D')) { duplicateSelected(); return; }
+    if (mod && (e.key === 'c' || e.key === 'C')) { copySelected(); return; }
+    if (mod && (e.key === 'v' || e.key === 'V')) { if (edClipboard) pasteClipboard(); return; }
     if (e.key === 'v' || e.key === 'V') setMode('select');
     if (e.key === 't' || e.key === 'T') setMode('edit');
-    if (e.key === 'Delete' || e.key === 'Backspace') { if (selectedEl) deleteSelected(); }
-    if (e.key === 'Escape') { deselectAll(); }
+    if (e.key === 'Delete' || e.key === 'Backspace') { if (selectedEl || selectedEls.length) deleteSelected(); }
+    if (e.key === 'Escape') { edHideContextMenu(); deselectAll(); }
     if (e.altKey && e.key === 'ArrowUp') { selectParent(); return; }
     if ((selectedEl || selectedEls.length) && ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
       nudgeElement(e.key, e.shiftKey ? 10 : 1);
@@ -1769,6 +1768,23 @@ function setupIframeListeners() {
       selectElement(el);
     }
   }, true);
+
+  // ===== RIGHT-CLICK: editor context menu =====
+  doc.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    let el = e.target;
+    if (el && el.hasAttribute && el.hasAttribute('data-ed-handle')) el = selectedEl;
+    if (el === doc.documentElement) el = doc.body;
+    const isBody = (el === doc.body);
+    if (!isBody && el && !selectedEls.includes(el) && el !== selectedEl) selectElement(el);
+    ctxTarget = isBody ? null : el;
+    ctxPoint = { x: e.clientX + (frame.contentWindow.pageXOffset || 0), y: e.clientY + (frame.contentWindow.pageYOffset || 0) };
+    const r = canvasFrame.getBoundingClientRect();
+    const s = (zoom || 100) / 100;
+    edShowContextMenu(r.left + e.clientX * s, r.top + e.clientY * s);
+  }, true);
+  doc.addEventListener('scroll', () => edHideContextMenu(), true);
 
   // ===== CLICK handler (single click — select) =====
   doc.addEventListener('click', (e) => {
@@ -1992,7 +2008,8 @@ function updateElPath(el) {
     if (node === el) b.className = 'current'; else b.onclick = () => selectElement(node);
     path.appendChild(b);
   });
-  if (hint) hint.style.display = (chain.length > 1 && el.children.length === 0) ? '' : 'none';
+  const isTextLeaf = el.children.length === 0 && (el.textContent || '').trim().length > 0 && !el.classList.contains('ed-shape') && el.tagName !== 'IMG';
+  if (hint) hint.style.display = (chain.length > 1 && isTextLeaf) ? '' : 'none';
 }
 
 function selectParent() {
@@ -2367,7 +2384,7 @@ function updatePanel(el) {
   const cs = frame.contentWindow.getComputedStyle(el);
 
   let tag = el.tagName.toLowerCase();
-  let cls = el.className.replace('editor-highlight','').replace('editor-hover','').trim();
+  let cls = (typeof el.className === 'string' ? el.className : '').split(/\s+/).filter(c => c && !/^editor-|^__ed_/.test(c)).join(' ');
   let info = `<${tag}>`;
   if (el.id) info += `#${el.id}`;
   if (cls) info += `.${cls.split(' ').join('.')}`;
@@ -2391,7 +2408,6 @@ function updatePanel(el) {
   document.getElementById('propH').value = cs.height;
   document.getElementById('propM').value = cs.margin;
   document.getElementById('propP').value = cs.padding;
-  document.getElementById('propBorder').value = cs.border;
   document.getElementById('propRadius').value = cs.borderRadius;
   document.getElementById('propFS').value = cs.fontSize;
   document.getElementById('propLH').value = cs.lineHeight;
@@ -2402,7 +2418,7 @@ function updatePanel(el) {
   document.getElementById('propColor').value = color;
   document.getElementById('propColorText').value = color;
   document.getElementById('propBg').value = bgColor === '#00000000' ? '#ffffff' : bgColor;
-  document.getElementById('propBgText').value = bgColor;
+  document.getElementById('propBgText').value = bgColor === '#00000000' ? 'transparent' : bgColor;
 
   document.getElementById('textEdit').value = el.textContent.substring(0, 500);
   document.getElementById('cssEdit').value = el.getAttribute('style') || '';
@@ -2442,27 +2458,53 @@ function updateText() {
   }
 }
 
+function edSelectionList() {
+  return selectedEls.length > 0 ? selectedEls.slice() : (selectedEl ? [selectedEl] : []);
+}
+
 function deleteSelected() {
-  if (!selectedEl) return;
-  if (confirm('선택한 요소를 삭제하시겠습니까?')) {
-    const info = selectedEl.tagName;
-    selectedEl.remove();
-    selectedEl = null;
-    document.getElementById('elInfo').textContent = '삭제됨';
-    document.getElementById('propSection').style.display = 'none';
-    document.getElementById('toggleElSection').style.display = 'none';
-    pushUndo(`요소 삭제: <${info}>`);
-    scanToggleElements(); // Rescan toggles
-  }
+  const els = edSelectionList();
+  if (!els.length) return;
+  const label = els.length > 1 ? `요소 ${els.length}개 삭제` : `요소 삭제: <${els[0].tagName.toLowerCase()}>`;
+  els.forEach(el => el.remove());
+  deselectAll();
+  document.getElementById('elInfo').textContent = '삭제됨 (⌘/Ctrl+Z로 되돌리기)';
+  pushUndo(label);
+  showStatus(label);
+  scanToggleElements(); // Rescan toggles
+}
+
+function edCleanClone(el) {
+  const clone = el.cloneNode(true);
+  clone.classList.remove('editor-highlight', 'editor-multi', 'editor-hover', 'editor-move-cursor', 'editor-dragging');
+  clone.removeAttribute('contenteditable');
+  clone.querySelectorAll('[data-editor-toggle-indicator],[data-ed-handle],[data-editor-guide]').forEach(n => n.remove());
+  clone.querySelectorAll('.editor-highlight,.editor-multi,.editor-hover,.editor-move-cursor').forEach(n => n.classList.remove('editor-highlight','editor-multi','editor-hover','editor-move-cursor'));
+  if (clone.id) clone.removeAttribute('id');   // avoid duplicate ids
+  return clone;
 }
 
 function duplicateSelected() {
-  if (!selectedEl) return;
-  const clone = selectedEl.cloneNode(true);
-  clone.classList.remove('editor-highlight');
-  selectedEl.parentNode.insertBefore(clone, selectedEl.nextSibling);
-  pushUndo('요소 복제');
+  const els = edSelectionList();
+  if (!els.length) return;
+  const clones = els.map(el => {
+    const clone = edCleanClone(el);
+    el.parentNode.insertBefore(clone, el.nextSibling);
+    // Offset free-positioned copies so they don't sit exactly on the original
+    try {
+      const cs = frame.contentWindow.getComputedStyle(el);
+      if (cs.position === 'absolute' || cs.position === 'fixed') {
+        clone.style.left = ((parseFloat(cs.left) || 0) + 24) + 'px';
+        clone.style.top = ((parseFloat(cs.top) || 0) + 24) + 'px';
+      }
+    } catch(e) {}
+    return clone;
+  });
+  pushUndo(els.length > 1 ? `요소 ${els.length}개 복제` : '요소 복제');
   scanToggleElements(); // Rescan toggles
+  if (clones.length === 1) selectElement(clones[0]);
+  else { deselectAll(); clones.forEach(c => { c.classList.add('editor-multi'); selectedEls.push(c); }); selectedEl = clones[clones.length - 1]; updatePanel(selectedEl); }
+  showStatus(clones.length > 1 ? `${clones.length}개 복제됨` : '복제됨');
 }
 
 // ===== IMAGE INSERTION =====
@@ -2939,7 +2981,7 @@ function edArrowSVG(){
     + '<defs><marker id="edArrowHead" markerWidth="12" markerHeight="12" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#111827"/></marker></defs>'
     + '<line x1="2" y1="15" x2="90" y2="15" stroke="#111827" stroke-width="3" marker-end="url(#edArrowHead)"/></svg>';
 }
-function edInsertShape(kind){
+function edInsertShape(kind, at){
   var doc = frame.contentDocument; if(!doc) return;
   var el = doc.createElement('div');
   el.className = 'ed-shape';
@@ -2959,9 +3001,10 @@ function edInsertShape(kind){
   var cx = cw/2;
   var cy = 80;
   try{ cy = Math.max(20, (wrap.scrollTop/scale) + (wrap.clientHeight/scale)/2); }catch(_){}
+  if(at && typeof at.x === 'number'){ cx = at.x + w/2; cy = at.y + h/2; }   // right-click point = top-left corner
   el.style.left = Math.round(cx - w/2)+'px';
   el.style.top = Math.round(cy - h/2)+'px';
-  doc.body.appendChild(el);
+  currentSlideContainer().appendChild(el);
   pushUndo('도형 삽입: '+kind);
   selectElement(el);
   showStatus('도형 삽입: '+kind+' (핸들로 크기 조절, 드래그로 이동)');
@@ -3013,8 +3056,9 @@ function edSetStyle(prop, val){
 function edSetBorder(){
   if(!selectedEl) return;
   var w = document.getElementById('edcBorderW').value;
-  var c = document.getElementById('edcBorderColor').value;
-  selectedEl.style.border = (w==='0' || !w) ? 'none' : (w+'px solid '+c);
+  var st = (document.getElementById('edcBorderStyle') || {}).value || 'solid';
+  var c = (document.getElementById('edcBorderColorText') || {}).value || document.getElementById('edcBorderColor').value;
+  selectedEl.style.border = (w==='0' || !w) ? 'none' : (w+'px '+st+' '+c);
   pushUndo('테두리 변경');
   updatePanel(selectedEl);
   edRenderHandles();
@@ -3026,13 +3070,20 @@ function edUpdateStylePanel(el){
   if(g('edcColor')) g('edcColor').value = edHex(cs.color, '#000000');
   if(g('edcBg')) g('edcBg').value = edHex(cs.backgroundColor, '#ffffff');
   if(g('edcFontSize')) g('edcFontSize').value = parseInt(cs.fontSize)||'';
-  if(g('edcWeight')){ var wv=cs.fontWeight; g('edcWeight').value = (wv==='700'||wv==='bold')?'bold':((parseInt(wv)>=800)?'800':'normal'); }
-  if(g('edcAlign')){ var av=cs.textAlign; g('edcAlign').value = (av==='center'||av==='right')?av:'left'; }
+  if(g('edcWeight')){ var wn=parseInt(cs.fontWeight); if(isNaN(wn)) wn = (cs.fontWeight==='bold')?700:400; g('edcWeight').value = wn<=300?'300':(wn<600?'normal':(wn<700?'600':(wn<800?'bold':'800'))); }
+  if(g('edcAlign')){ var av=cs.textAlign; g('edcAlign').value = (av==='center'||av==='right'||av==='justify')?av:'left'; }
   if(g('edcPad')) g('edcPad').value = parseInt(cs.paddingTop)||0;
   if(g('edcMargin')) g('edcMargin').value = parseInt(cs.marginTop)||0;
   if(g('edcRadius')) g('edcRadius').value = parseInt(cs.borderTopLeftRadius)||0;
-  if(g('edcBorderW')){ var bw=parseInt(cs.borderTopWidth)||0; var bs=cs.borderTopStyle; g('edcBorderW').value = (bs==='none'||bw===0)?'0':((bw>=2)?'2':'1'); }
-  if(g('edcBorderColor')) g('edcBorderColor').value = edHex(cs.borderTopColor, '#333333');
+  if(g('edcBorderW')){
+    var bw=Math.round(parseFloat(cs.borderTopWidth))||0; var bs=cs.borderTopStyle;
+    var sel=g('edcBorderW'); var val=(bs==='none'||bw===0)?'0':String(bw);
+    if(val!=='0' && !Array.from(sel.options).some(function(o){return o.value===val;})){ var o=document.createElement('option'); o.value=val; o.textContent=val+'px'; sel.appendChild(o); }
+    sel.value = val;
+  }
+  if(g('edcBorderStyle')){ var st=cs.borderTopStyle; g('edcBorderStyle').value = (st==='dashed'||st==='dotted'||st==='double')?st:'solid'; }
+  if(g('edcBorderColor')){ var bc=edHex(cs.borderTopColor, '#333333'); g('edcBorderColor').value = bc; if(g('edcBorderColorText')) g('edcBorderColorText').value = (cs.borderTopStyle==='none'||!parseFloat(cs.borderTopWidth)) ? '' : bc; }
+  if(g('edcFont')){ var ff=cs.fontFamily||''; var fsel=g('edcFont'); var match=Array.from(fsel.options).find(function(o){ return o.value && ff.toLowerCase().indexOf(o.value.split(',')[0].replace(/['"]/g,'').toLowerCase())>=0; }); fsel.value = match ? match.value : ''; }
 }
 
 // ---- PASTE IMAGE ----
@@ -3052,6 +3103,7 @@ function edInsertPastedImage(dataUrl){
 }
 document.addEventListener('paste', function(e){
   if(!frame.contentDocument) return;
+  if(Date.now() - edLastInternalPaste < 400) return;   // internal clipboard already handled this ⌘V
   var ae = document.activeElement;
   if(ae && (ae.tagName==='INPUT' || ae.tagName==='TEXTAREA')) return;
   var items = (e.clipboardData && e.clipboardData.items) ? e.clipboardData.items : [];
@@ -3352,6 +3404,230 @@ function edDriveUpdateMenu(){
   if (it) it.classList.toggle('disabled', !driveFile);
 }
 
+// ===== v3.2: SELECT ALL · CLIPBOARD · ARRANGE · ALIGN · CONTEXT MENU =====
+let ctxTarget = null;            // element under the right-click (null = empty canvas)
+let ctxPoint = null;             // right-click point in iframe document coords
+let edClipboard = null;          // [{html, absolute}] internal clipboard
+let edLastInternalPaste = 0;
+
+function currentSlideContainer() {
+  const doc = frame.contentDocument;
+  if (isDeckFile && slideElements[currentSlide]) return slideElements[currentSlide];
+  if (isRevealFile) return doc.querySelector('.reveal .present') || slideElements[currentSlide] || doc.body;
+  return doc.body;
+}
+
+function edSelectableChildren(container) {
+  return Array.from(container.children).filter(c =>
+    !c.hasAttribute('data-ed-handle') && !c.hasAttribute('data-editor-guide') && !c.hasAttribute('data-editor-toggle-indicator')
+    && !['SCRIPT','STYLE','LINK','META','TEMPLATE'].includes(c.tagName));
+}
+
+// scope: 'slide' = every top-level element of the current slide (or the document body),
+//        'siblings' = every element in the same box as the selected / right-clicked element.
+function selectAll(scope) {
+  const doc = frame.contentDocument;
+  if (!doc) return;
+  let container = null;
+  if (scope === 'siblings') {
+    const base = ctxTarget || selectedEl;
+    container = base && base.parentElement ? base.parentElement : null;
+  }
+  if (!container) container = currentSlideContainer();
+  let items = edSelectableChildren(container);
+  // A slide usually has one wrapper (.slide-inner) — go one level down so "전체" means its contents.
+  if (scope === 'slide' && items.length === 1 && items[0].children.length > 1) items = edSelectableChildren(items[0]);
+  if (!items.length) { showStatus('선택할 요소가 없습니다'); return; }
+  deselectAll();
+  items.forEach(el => { el.classList.add('editor-multi'); selectedEls.push(el); });
+  selectedEl = items[items.length - 1];
+  updatePanel(selectedEl);
+  edClearHandles();
+  document.getElementById('elInfo').textContent = `${selectedEls.length}개 선택됨 · 드래그/화살표로 함께 이동, Del 삭제, ⌘/Ctrl+D 복제`;
+  document.getElementById('statusEl').textContent = `${selectedEls.length}개 요소 선택`;
+}
+
+function copySelected() {
+  const els = edSelectionList();
+  if (!els.length) return;
+  const win = frame.contentWindow;
+  edClipboard = els.map(el => ({ html: edCleanClone(el).outerHTML, absolute: /absolute|fixed/.test(win.getComputedStyle(el).position) }));
+  showStatus(`${els.length}개 복사됨 (⌘/Ctrl+V로 붙여넣기)`);
+}
+
+function pasteClipboard(at) {
+  const doc = frame.contentDocument;
+  if (!doc || !edClipboard || !edClipboard.length) return;
+  edLastInternalPaste = Date.now();
+  const anchor = selectedEl && selectedEl.parentElement ? selectedEl : null;
+  const container = anchor ? anchor.parentElement : currentSlideContainer();
+  const made = [];
+  edClipboard.forEach((item, i) => {
+    const tmp = doc.createElement('div');
+    tmp.innerHTML = item.html;
+    const node = tmp.firstElementChild;
+    if (!node) return;
+    if (anchor) anchor.parentElement.insertBefore(node, anchor.nextSibling); else container.appendChild(node);
+    if (item.absolute) {
+      if (at && typeof at.x === 'number') { node.style.left = Math.round(at.x + i * 16) + 'px'; node.style.top = Math.round(at.y + i * 16) + 'px'; }
+      else { node.style.left = ((parseFloat(node.style.left) || 0) + 24) + 'px'; node.style.top = ((parseFloat(node.style.top) || 0) + 24) + 'px'; }
+    }
+    made.push(node);
+  });
+  if (!made.length) return;
+  pushUndo(made.length > 1 ? `${made.length}개 붙여넣기` : '붙여넣기');
+  scanToggleElements();
+  if (made.length === 1) selectElement(made[0]);
+  else { deselectAll(); made.forEach(n => { n.classList.add('editor-multi'); selectedEls.push(n); }); selectedEl = made[made.length - 1]; updatePanel(selectedEl); }
+  showStatus(`${made.length}개 붙여넣음`);
+}
+
+// front/back: free-positioned elements are reordered in the DOM (paint order), flow elements get a z-index.
+// forward/backward: swap with the neighbouring sibling (works for both).
+function arrangeSelected(kind) {
+  const el = selectedEl;
+  if (!el || !el.parentElement) return;
+  const win = frame.contentWindow;
+  const cs = win.getComputedStyle(el);
+  const parent = el.parentElement;
+  const free = (cs.position === 'absolute' || cs.position === 'fixed');
+  if (kind === 'forward') { const n = el.nextElementSibling; if (n) parent.insertBefore(n, el); }
+  else if (kind === 'backward') { const p = el.previousElementSibling; if (p) parent.insertBefore(el, p); }
+  else if (kind === 'front') {
+    if (free) { parent.appendChild(el); el.style.zIndex = ''; }
+    else {
+      const zs = Array.from(parent.children).filter(s => s !== el).map(s => parseInt(win.getComputedStyle(s).zIndex)).filter(n => !isNaN(n));
+      if (cs.position === 'static') el.style.position = 'relative';
+      el.style.zIndex = String((zs.length ? Math.max(...zs) : 0) + 1);
+    }
+  } else if (kind === 'back') {
+    if (free) { parent.insertBefore(el, parent.firstChild); el.style.zIndex = ''; }
+    else { if (cs.position === 'static') el.style.position = 'relative'; el.style.zIndex = '0'; }
+  }
+  const labels = { front: '맨 앞으로', back: '맨 뒤로', forward: '한 단계 앞으로', backward: '한 단계 뒤로' };
+  pushUndo('배치: ' + labels[kind]);
+  updatePanel(el);
+  edRenderHandles();
+  showStatus('배치: ' + labels[kind]);
+}
+
+// Align the selected element inside its parent's content box by shifting left/top.
+function alignSelected(kind) {
+  const el = selectedEl;
+  if (!el || !el.parentElement) return;
+  const win = frame.contentWindow;
+  const cs = win.getComputedStyle(el);
+  const pcs = win.getComputedStyle(el.parentElement);
+  const p = el.parentElement.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  const pl = parseFloat(pcs.paddingLeft) || 0, pr = parseFloat(pcs.paddingRight) || 0, pt = parseFloat(pcs.paddingTop) || 0, pb = parseFloat(pcs.paddingBottom) || 0;
+  let dx = 0, dy = 0;
+  if (kind === 'left') dx = (p.left + pl) - r.left;
+  if (kind === 'right') dx = (p.right - pr) - r.right;
+  if (kind === 'hcenter') dx = ((p.left + pl + p.right - pr) / 2) - (r.left + r.width / 2);
+  if (kind === 'top') dy = (p.top + pt) - r.top;
+  if (kind === 'bottom') dy = (p.bottom - pb) - r.bottom;
+  if (kind === 'vcenter') dy = ((p.top + pt + p.bottom - pb) / 2) - (r.top + r.height / 2);
+  if (cs.position === 'static') el.style.position = 'relative';
+  if (dx) el.style.left = Math.round((parseFloat(cs.left) || 0) + dx) + 'px';
+  if (dy) el.style.top = Math.round((parseFloat(cs.top) || 0) + dy) + 'px';
+  const labels = { left: '왼쪽', right: '오른쪽', hcenter: '가로 가운데', top: '위', bottom: '아래', vcenter: '세로 가운데' };
+  pushUndo('정렬: ' + labels[kind]);
+  updatePanel(el);
+  edRenderHandles();
+  showStatus('정렬: ' + labels[kind]);
+}
+
+// ---- context menu (rendered in the editor document, positioned over the canvas) ----
+function edCtxItems() {
+  const has = !!(selectedEl || selectedEls.length);
+  const multi = selectedEls.length > 1;
+  const pt = ctxPoint;
+  return [
+    { label: '✏️ 텍스트 편집', key: 'T', disabled: !selectedEl || multi, run: () => { setMode('edit'); selectElement(selectedEl); } },
+    { label: '⬆ 바깥(부모) 요소 선택', key: 'Alt+↑', disabled: !selectedEl, run: () => selectParent() },
+    { label: '⧉ 같은 상자 안 모두 선택', disabled: !(ctxTarget || selectedEl), run: () => selectAll('siblings') },
+    { label: '⧉ 슬라이드 전체 선택', key: '⌘A', run: () => selectAll('slide') },
+    { sep: true },
+    { label: '▭ 도형 삽입', sub: [
+      { label: '▭ 사각형', run: () => edInsertShape('rect', pt) },
+      { label: '● 원', run: () => edInsertShape('circle', pt) },
+      { label: '─ 선', run: () => edInsertShape('line', pt) },
+      { label: '➔ 화살표', run: () => edInsertShape('arrow', pt) },
+      { label: '🅴 텍스트박스', run: () => edInsertShape('textbox', pt) },
+    ]},
+    { label: '＋ 요소 삽입', sub: [
+      { label: '🖼 이미지…', run: () => showImageModal() },
+      { label: '▦ 표 (2×2)', run: () => edInsertElement('table') },
+      { label: '═ 구분선', run: () => edInsertElement('hr') },
+      { label: '🔘 버튼', run: () => edInsertElement('button') },
+      { label: '</> HTML 코드…', run: () => insertHTML() },
+    ]},
+    { sep: true },
+    { label: '📋 복제', key: '⌘D', disabled: !has, run: () => duplicateSelected() },
+    { label: '⎘ 복사', key: '⌘C', disabled: !has, run: () => copySelected() },
+    { label: '⎗ 붙여넣기', key: '⌘V', disabled: !edClipboard, run: () => pasteClipboard(pt) },
+    { label: '⬒ 배치', disabled: !selectedEl || multi, sub: [
+      { label: '맨 앞으로 가져오기', run: () => arrangeSelected('front') },
+      { label: '맨 뒤로 보내기', run: () => arrangeSelected('back') },
+      { label: '한 단계 앞으로', run: () => arrangeSelected('forward') },
+      { label: '한 단계 뒤로', run: () => arrangeSelected('backward') },
+    ]},
+    { label: '↔ 정렬·이동', disabled: !selectedEl || multi, sub: [
+      { label: '↔ 가로 가운데', run: () => alignSelected('hcenter') },
+      { label: '↕ 세로 가운데', run: () => alignSelected('vcenter') },
+      { label: '⇤ 왼쪽에 맞춤', run: () => alignSelected('left') },
+      { label: '⇥ 오른쪽에 맞춤', run: () => alignSelected('right') },
+      { label: '⤒ 위에 맞춤', run: () => alignSelected('top') },
+      { label: '⤓ 아래에 맞춤', run: () => alignSelected('bottom') },
+      { label: '⊙ 위치 초기화', run: () => resetPosition() },
+    ]},
+    { sep: true },
+    { label: '🗑 삭제', key: 'Del', disabled: !has, run: () => deleteSelected() },
+  ];
+}
+
+function edBuildMenuList(items, host) {
+  items.forEach(it => {
+    if (it.sep) { const s = document.createElement('div'); s.className = 'ctx-sep'; host.appendChild(s); return; }
+    const d = document.createElement('div');
+    d.className = 'ctx-item' + (it.disabled ? ' disabled' : '') + (it.sub ? ' has-sub' : '');
+    const lab = document.createElement('span'); lab.textContent = it.label; d.appendChild(lab);
+    if (it.key) { const k = document.createElement('span'); k.className = 'ctx-key'; k.textContent = it.key; d.appendChild(k); }
+    if (it.sub) {
+      const a = document.createElement('span'); a.className = 'ctx-arrow'; a.textContent = '▸'; d.appendChild(a);
+      const sub = document.createElement('div'); sub.className = 'ctx-sub'; edBuildMenuList(it.sub, sub); d.appendChild(sub);
+    } else if (!it.disabled) {
+      d.onclick = (e) => { e.stopPropagation(); edHideContextMenu(); try { it.run(); } catch(err) { console.error(err); } };
+    }
+    host.appendChild(d);
+  });
+}
+
+function edShowContextMenu(x, y) {
+  const m = document.getElementById('ctxMenu');
+  if (!m) return;
+  m.innerHTML = '';
+  edBuildMenuList(edCtxItems(), m);
+  m.style.display = 'block';
+  m.classList.remove('flip-sub');
+  const mw = m.offsetWidth, mh = m.offsetHeight;
+  let left = x, top = y;
+  if (left + mw + 200 > window.innerWidth) m.classList.add('flip-sub');
+  if (left + mw > window.innerWidth - 8) left = Math.max(8, window.innerWidth - mw - 8);
+  if (top + mh > window.innerHeight - 8) top = Math.max(8, window.innerHeight - mh - 8);
+  m.style.left = left + 'px';
+  m.style.top = top + 'px';
+}
+function edHideContextMenu() {
+  const m = document.getElementById('ctxMenu');
+  if (m) { m.style.display = 'none'; m.innerHTML = ''; }
+}
+document.addEventListener('mousedown', (e) => { if (!e.target.closest || !e.target.closest('#ctxMenu')) edHideContextMenu(); }, true);
+document.addEventListener('contextmenu', (e) => { if (e.target.closest && e.target.closest('#ctxMenu')) e.preventDefault(); });
+window.addEventListener('blur', edHideContextMenu);
+(function(){ const w = document.getElementById('canvasWrap'); if (w) w.addEventListener('scroll', edHideContextMenu, { passive: true }); })();
+
 // ===== KEYBOARD SHORTCUTS =====
 document.addEventListener('keydown', (e) => {
   const isMac = navigator.platform.includes('Mac');
@@ -3364,8 +3640,13 @@ document.addEventListener('keydown', (e) => {
   if (mod && e.key === 'y') { e.preventDefault(); doRedo(); }
   if (e.key === 'v' && !mod && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT') { setMode('select'); }
   if (e.key === 't' && !mod && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT') { setMode('edit'); }
-  if (e.key === 'Delete' && selectedEl && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT') { deleteSelected(); }
-  if (e.key === 'Escape') { deselectAll(); }
+  const typing = document.activeElement && (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT');
+  if (e.key === 'Delete' && (selectedEl || selectedEls.length) && !typing) { deleteSelected(); }
+  if (mod && e.key === 'a' && !typing && frame.contentDocument && currentFile) { e.preventDefault(); selectAll('slide'); }
+  if (mod && e.key === 'd' && !typing && selectedEl) { e.preventDefault(); duplicateSelected(); }
+  if (mod && e.key === 'c' && !typing && selectedEl) { copySelected(); }
+  if (mod && e.key === 'v' && !typing && edClipboard) { e.preventDefault(); pasteClipboard(); }
+  if (e.key === 'Escape') { edHideContextMenu(); deselectAll(); }
   if (e.altKey && e.key === 'ArrowUp' && selectedEl) { e.preventDefault(); selectParent(); }
   if (e.key === 'PageDown') { e.preventDefault(); if (e.altKey) slideMoveCurrent(1); else slideGo(1); }
   if (e.key === 'PageUp') { e.preventDefault(); if (e.altKey) slideMoveCurrent(-1); else slideGo(-1); }
