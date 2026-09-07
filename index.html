@@ -117,6 +117,13 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:
 }
 .prop-textarea:focus{outline:none;border-color:var(--bl);}
 
+/* Element path (ancestor chain) */
+.el-path{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;}
+.el-path button{font-family:'SF Mono','Consolas',monospace;font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid var(--bg4);background:var(--bg3);color:var(--tx2);cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.el-path button:hover{border-color:var(--bl);color:var(--tx);}
+.el-path button.current{border-color:var(--bl);color:#fff;background:var(--bl);cursor:default;}
+.el-path .sep{color:var(--tx3);font-size:10px;align-self:center;}
+.el-hint{font-size:10px;color:var(--tx3);line-height:1.5;margin-top:2px;}
 /* Element info */
 .el-info{
   background:var(--bg3);border-radius:6px;padding:8px 10px;margin-bottom:10px;
@@ -439,6 +446,7 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:
     <button class="tbtn" onclick="edInsertElement('button')" title="버튼">🔘</button>
   </div>
   <div class="tool-group">
+    <button class="tbtn" onclick="selectParent()" title="바깥(부모) 요소 선택 (Alt+↑)">⬆</button>
     <button class="tbtn" onclick="deleteSelected()" title="선택 요소 삭제 (Del)">🗑</button>
     <button class="tbtn" onclick="duplicateSelected()" title="복제">📋</button>
   </div>
@@ -482,7 +490,8 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:
         <kbd class="kbd">←→↑↓</kbd> 1px 이동 &nbsp;
         <kbd class="kbd">Shift+←→↑↓</kbd> 10px 이동 &nbsp;
         <kbd class="kbd">드래그</kbd> 자유 이동<br>
-        <kbd class="kbd">더블클릭</kbd> 토글 펼치기/접기
+        <kbd class="kbd">더블클릭</kbd> 토글 펼치기/접기 &nbsp;
+        <kbd class="kbd">Alt+↑</kbd> 바깥(부모) 요소 선택
       </div>
     </div>
     <div class="canvas-frame" id="canvasFrame" style="display:none;">
@@ -495,6 +504,8 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:
     <div class="panel-section">
       <h3>선택된 요소</h3>
       <div class="el-info" id="elInfo">선택 없음</div>
+      <div class="el-path" id="elPath"></div>
+      <p class="el-hint" id="elHint" style="display:none;">💡 글상자를 클릭하면 안쪽 글자 요소가 잡힙니다. 상자 자체를 늘이거나 옮기려면 위 경로에서 바깥 요소를 고르거나 <kbd class="kbd">Alt+↑</kbd>를 누르세요.</p>
     </div>
 
     <!-- Slide order (shown for reveal.js / 1920x1080 decks) -->
@@ -821,6 +832,7 @@ let totalSlides = 0;
 let slideElements = [];        // Direct DOM references to <section> slides
 let toggleElements = [];       // Tracked <details> elements in iframe
 let driveFile = null;          // { id, name, modifiedTime, canEdit } when the open file came from Google Drive
+let inputUndoTimer = null;     // debounce timer for typing → undo snapshot
 
 const frame = document.getElementById('editorFrame');
 const canvasFrame = document.getElementById('canvasFrame');
@@ -1650,6 +1662,12 @@ function setupIframeListeners() {
   if (existing) existing.remove();
   doc.head.appendChild(style);
 
+  // Attach listeners once per document. This function is also called after every save and
+  // undo to re-inject the styles; re-adding listeners there stacked duplicate handlers, so
+  // each keystroke/click was handled N times and the editor got slower with every save.
+  if (doc.__edListenersAttached) return;
+  doc.__edListenersAttached = true;
+
   // ===== Block ALL keyboard events inside iframe =====
   doc.addEventListener('keydown', (e) => {
     const isMac = navigator.platform.includes('Mac');
@@ -1686,6 +1704,7 @@ function setupIframeListeners() {
     if (e.key === 't' || e.key === 'T') setMode('edit');
     if (e.key === 'Delete' || e.key === 'Backspace') { if (selectedEl) deleteSelected(); }
     if (e.key === 'Escape') { deselectAll(); }
+    if (e.altKey && e.key === 'ArrowUp') { selectParent(); return; }
     if ((selectedEl || selectedEls.length) && ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
       nudgeElement(e.key, e.shiftKey ? 10 : 1);
     }
@@ -1858,9 +1877,12 @@ function setupIframeListeners() {
     multiDragOrigins = [];
   }, true);
 
-  // Track text edits for undo
+  // Track text edits for undo. Debounced: snapshotting the whole document on every
+  // keystroke made typing crawl on image-heavy decks.
   doc.addEventListener('input', (e) => {
-    pushUndo('텍스트 편집: ' + truncate(e.target.textContent, 30));
+    clearTimeout(inputUndoTimer);
+    const label = '텍스트 편집: ' + truncate((e.target && e.target.textContent) || '', 30);
+    inputUndoTimer = setTimeout(() => pushUndo(label), 700);
   });
 }
 
@@ -1939,7 +1961,50 @@ function toggleMultiSelect(el) {
   document.getElementById('elInfo').textContent = `${selectedEls.length}개 선택됨`;
 }
 
+// Short label for an element: tag + #id or first class
+function elLabel(el) {
+  let s = el.tagName.toLowerCase();
+  if (el.id) s += '#' + el.id;
+  else {
+    const cls = (typeof el.className === 'string' ? el.className : '').split(/\s+/).filter(c => c && !/^editor-|^__ed_|^ed-/.test(c));
+    if (cls.length) s += '.' + cls[0];
+  }
+  return s;
+}
+
+// Ancestor chain (body … selected) as clickable chips, so the box around a text can be picked
+function updateElPath(el) {
+  const path = document.getElementById('elPath');
+  const hint = document.getElementById('elHint');
+  if (!path) return;
+  path.innerHTML = '';
+  const doc = frame.contentDocument;
+  const chain = [];
+  let cur = el;
+  while (cur && cur !== doc.body && cur !== doc.documentElement && chain.length < 7) { chain.unshift(cur); cur = cur.parentElement; }
+  chain.forEach((node, i) => {
+    if (i > 0) { const s = document.createElement('span'); s.className = 'sep'; s.textContent = '›'; path.appendChild(s); }
+    const b = document.createElement('button');
+    b.textContent = elLabel(node);
+    b.title = (node === el) ? '현재 선택' : '이 요소 선택';
+    if (node === el) b.className = 'current'; else b.onclick = () => selectElement(node);
+    path.appendChild(b);
+  });
+  if (hint) hint.style.display = (chain.length > 1 && el.children.length === 0) ? '' : 'none';
+}
+
+function selectParent() {
+  const doc = frame.contentDocument;
+  if (!doc || !selectedEl) return;
+  const p = selectedEl.parentElement;
+  if (!p || p === doc.body || p === doc.documentElement) { showStatus('이미 최상위 요소입니다'); return; }
+  selectElement(p);
+  showStatus('바깥 요소 선택: <' + p.tagName.toLowerCase() + '>');
+}
+
 function deselectAll() {
+  const _p = document.getElementById('elPath'); if (_p) _p.innerHTML = '';
+  const _h = document.getElementById('elHint'); if (_h) _h.style.display = 'none';
   if (selectedEl) {
     selectedEl.classList.remove('editor-highlight');
     selectedEl.removeAttribute('contenteditable');
@@ -2313,6 +2378,7 @@ function updatePanel(el) {
   }
 
   document.getElementById('elInfo').textContent = info;
+  updateElPath(el);
 
   document.getElementById('propSection').style.display = 'block';
 
@@ -2656,6 +2722,8 @@ function pushUndo(label) {
   try {
     if (typeof edClearHandles === 'function') edClearHandles();
     const html = frame.contentDocument.documentElement.outerHTML;
+    const last = undoStack[undoStack.length - 1];
+    if (last && last.html === html) { if (typeof edRenderHandles === 'function') edRenderHandles(); return; }
     undoStack.push({ html, label });
     if (undoStack.length > 50) undoStack.shift();
     redoStack = [];
@@ -2709,6 +2777,7 @@ function rgbToHex(rgb) {
 }
 
 function truncate(str, n) {
+  str = (str == null) ? '' : String(str);
   return str.length > n ? str.substring(0, n) + '…' : str;
 }
 
@@ -2802,8 +2871,22 @@ function edStartResize(e, dir){
     left: parseInt(cs.left)||0, top: parseInt(cs.top)||0, pos: cs.position };
   var west = dir.indexOf('w')>-1, east = dir.indexOf('e')>-1, north = dir.indexOf('n')>-1, south = dir.indexOf('s')>-1;
   var isCorner = (west||east) && (north||south);
+  var prepared = false;
+  function prepare(){
+    // Inline width/height alone is ignored by flex items (flex:1), inline elements, and
+    // boxes capped by max-width/min-height rules — common in deck templates. Loosen those
+    // once the user actually starts dragging a handle.
+    if(prepared) return; prepared = true;
+    el.style.boxSizing = 'border-box';      // rect.width already includes padding/border
+    if(isImg) return;
+    if(cs.display === 'inline') el.style.display = 'inline-block';
+    try{ var pcs = win.getComputedStyle(el.parentElement); if(/flex/.test(pcs.display)) el.style.flex = '0 0 auto'; }catch(_){}
+    el.style.maxWidth = 'none'; el.style.maxHeight = 'none';
+    el.style.minWidth = '0'; el.style.minHeight = '0';
+  }
   function onMove(ev){
     ev.preventDefault();
+    prepare();
     var dx = ev.clientX - start.mx, dy = ev.clientY - start.my;
     var newW = start.w, newH = start.h;
     if(east) newW = start.w + dx;
@@ -3141,11 +3224,10 @@ const edDrive = (function(){
   function showPicker(t){
     return new Promise((resolve) => {
       const origin = location.protocol + '//' + location.host;
+      // One view: folders + HTML files only (a second unfiltered view showed up as a
+      // duplicate "Google Drive" tab). Search inside the dialog still covers the whole Drive.
       const htmlView = new google.picker.DocsView(google.picker.ViewId.DOCS)
-        .setMimeTypes('text/html')
-        .setIncludeFolders(true)
-        .setMode(google.picker.DocsViewMode.LIST);
-      const allView = new google.picker.DocsView(google.picker.ViewId.DOCS)
+        .setMimeTypes('text/html,application/xhtml+xml')
         .setIncludeFolders(true)
         .setMode(google.picker.DocsViewMode.LIST);
       let done = false;
@@ -3157,7 +3239,6 @@ const edDrive = (function(){
         .setLocale('ko')
         .setTitle('편집할 HTML 파일 선택')
         .addView(htmlView)
-        .addView(allView)
         .enableFeature(google.picker.Feature.SUPPORT_DRIVES)
         .setCallback((d) => {
           if (done || !d || !d.action) return;
@@ -3198,6 +3279,8 @@ const edDrive = (function(){
         alert('구글 문서 형식(Docs/Slides/Sheets 등)은 열 수 없습니다. HTML 파일을 선택해 주세요.');
         updateStatus(); return;
       }
+      const looksHtml = /\.x?html?$/i.test(meta.name || doc.name || '') || /html/i.test(meta.mimeType || '');
+      if (!looksHtml && !confirm('HTML 파일이 아닌 것 같습니다 (' + (meta.mimeType || '형식 미상') + ').\n그래도 여시겠습니까?')) { updateStatus(); return; }
       if (meta.size && parseInt(meta.size, 10) > MAX_BYTES) {
         alert('파일이 너무 큽니다 (25MB 초과). 이미지가 base64로 내장된 경우 크기를 줄여 주세요.');
         updateStatus(); return;
@@ -3271,6 +3354,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 't' && !mod && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT') { setMode('edit'); }
   if (e.key === 'Delete' && selectedEl && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT') { deleteSelected(); }
   if (e.key === 'Escape') { deselectAll(); }
+  if (e.altKey && e.key === 'ArrowUp' && selectedEl) { e.preventDefault(); selectParent(); }
   if (e.key === 'PageDown') { e.preventDefault(); if (e.altKey) slideMoveCurrent(1); else slideGo(1); }
   if (e.key === 'PageUp') { e.preventDefault(); if (e.altKey) slideMoveCurrent(-1); else slideGo(-1); }
 });
