@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HTML Visual Editor v3.1</title>
+<title>HTML Visual Editor v3.1.2</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 :root{
@@ -312,7 +312,7 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:
 
 <!-- ===== TOP BAR ===== -->
 <div class="topbar">
-  <div class="logo">HTML Visual Editor <span>v3.1</span></div>
+  <div class="logo">HTML Visual Editor <span>v3.1.2</span></div>
   <div class="sep"></div>
   <button class="btn" onclick="openFile()" title="Ctrl/Cmd+O">📂 열기</button>
   <button class="btn btn-success" onclick="saveFile()" title="Ctrl/Cmd+S">💾 저장</button>
@@ -915,13 +915,8 @@ function loadHTML(html, name, opts) {
   frame.onload = () => {
     setupIframeListeners();
     if (!isRevealFile && !isDeckFile) {
-      setTimeout(() => {
-        try {
-          const h = frame.contentDocument.documentElement.scrollHeight;
-          frame.style.height = Math.max(h, 800) + 'px';
-          canvasFrame.style.height = frame.style.height;
-        } catch(e) {}
-      }, 500);
+      setTimeout(fitFrameHeight, 500);
+      setTimeout(fitFrameHeight, 1500);   // fonts/images settle
     }
     if (isDeckFile) {
       setTimeout(() => setupDeckMode(), 150);
@@ -1144,15 +1139,7 @@ function manualToggleDetails(detailsEl) {
   pushUndo('토글 전환: ' + getToggleLabel(detailsEl));
 
   // Resize iframe if needed
-  if (!isRevealFile && !isDeckFile) {
-    setTimeout(() => {
-      try {
-        const h = frame.contentDocument.documentElement.scrollHeight;
-        frame.style.height = Math.max(h, 800) + 'px';
-        canvasFrame.style.height = frame.style.height;
-      } catch(e) {}
-    }, 100);
-  }
+  if (!isRevealFile && !isDeckFile) setTimeout(fitFrameHeight, 100);
 }
 
 // Toggle a custom toggle element (onclick-based, aria-expanded, Bootstrap collapse, etc.)
@@ -1261,15 +1248,30 @@ function manualToggleCustom(el) {
 
 // Helper: resize iframe height after toggle
 function resizeIframeHeight() {
-  if (!isRevealFile && !isDeckFile) {
-    setTimeout(() => {
-      try {
-        const h = frame.contentDocument.documentElement.scrollHeight;
-        frame.style.height = Math.max(h, 800) + 'px';
-        canvasFrame.style.height = frame.style.height;
-      } catch(e) {}
-    }, 200);
-  }
+  if (!isRevealFile && !isDeckFile) setTimeout(fitFrameHeight, 200);
+}
+
+// Size the canvas frame for a plain (non-deck) document.
+// Normally the frame grows to the content height so the outer canvas scrolls. But documents
+// whose height depends on the viewport (scroll decks with `.slide{min-height:100vh}`) grow
+// every time the frame grows — 11 slides became a 55,000px canvas with content pushed far
+// off-screen. Detect that and keep a fixed 1080px viewport instead; the frame scrolls inside.
+let frameScrollsInside = false;
+function fitFrameHeight() {
+  if (isRevealFile || isDeckFile) return;
+  try {
+    const doc = frame.contentDocument; if (!doc) return;
+    const de = doc.documentElement;
+    frame.style.height = '1080px';
+    const h1 = de.scrollHeight;
+    frame.style.height = '2160px';
+    const h2 = de.scrollHeight;
+    frameScrollsInside = (h2 - h1) > 540;
+    const h = frameScrollsInside ? 1080 : Math.max(h1, 800);
+    frame.style.height = h + 'px';
+    canvasFrame.style.height = frame.style.height;
+    if (typeof edPositionHandles === 'function') edPositionHandles();
+  } catch(e) {}
 }
 
 // Get a readable label for a toggle element
@@ -2715,6 +2717,7 @@ function setZoom(delta) {
   }
   canvasFrame.style.transform = `scale(${zoom / 100})`;
   document.getElementById('zoomLabel').textContent = zoom + '%';
+  if (selectedEl && typeof edRenderHandles === 'function') { try { edRenderHandles(); } catch(e) {} }
 }
 
 // ===== UNDO / REDO =====
@@ -2822,19 +2825,27 @@ function edResizable(el){
   if(el.hasAttribute && el.hasAttribute('data-ed-handle')) return false;
   return true;
 }
+// Handle size in document px so that it is always ~14 px on screen regardless of canvas zoom
+// (a fixed 11px handle shrank to a 5px dot at 45% zoom and could not be grabbed).
+function edHandleSize(){
+  var s = (zoom || 100) / 100;
+  return Math.max(11, Math.round(14 / s));
+}
 function edRenderHandles(){
   var doc = frame.contentDocument; if(!doc) return;
   edClearHandles();
   if(selectedEls && selectedEls.length>1) return;
   var el = selectedEl;
   if(!edResizable(el)) return;
+  var sz = edHandleSize();
+  var bw = Math.max(2, Math.round(sz/6));
   var dirs = [['nw','nwse-resize'],['n','ns-resize'],['ne','nesw-resize'],['e','ew-resize'],['se','nwse-resize'],['s','ns-resize'],['sw','nesw-resize'],['w','ew-resize']];
   for(var i=0;i<dirs.length;i++){
     (function(dir,cursor){
       var h = doc.createElement('div');
       h.setAttribute('data-ed-handle','1');
       h.setAttribute('data-ed-dir',dir);
-      h.style.cssText='position:absolute;width:11px;height:11px;background:#3B82F6;border:2px solid #fff;border-radius:2px;box-sizing:border-box;z-index:2147483000;margin:0;padding:0;box-shadow:0 1px 3px rgba(0,0,0,.45);cursor:'+cursor+';';
+      h.style.cssText='position:absolute;width:'+sz+'px;height:'+sz+'px;background:#3B82F6;border:'+bw+'px solid #fff;border-radius:'+Math.round(sz/5)+'px;box-sizing:border-box;z-index:2147483000;margin:0;padding:0;box-shadow:0 1px 3px rgba(0,0,0,.45);cursor:'+cursor+';';
       h.addEventListener('mousedown', function(e){ edStartResize(e,dir); }, false);
       h.addEventListener('click', function(e){ e.stopPropagation(); e.preventDefault(); }, false);
       h.addEventListener('dblclick', function(e){ e.stopPropagation(); e.preventDefault(); }, false);
@@ -2852,11 +2863,12 @@ function edPositionHandles(){
   var sx = win.pageXOffset || 0, sy = win.pageYOffset || 0;
   var x = rect.left+sx, y = rect.top+sy, w = rect.width, h = rect.height;
   var pos = { nw:[x,y], n:[x+w/2,y], ne:[x+w,y], e:[x+w,y+h/2], se:[x+w,y+h], s:[x+w/2,y+h], sw:[x,y+h], w:[x,y+h/2] };
+  var half = edHandleSize()/2;
   for(var i=0;i<handles.length;i++){
     var d = handles[i].getAttribute('data-ed-dir');
     var p = pos[d]; if(!p) continue;
-    handles[i].style.left = (p[0]-5.5)+'px';
-    handles[i].style.top = (p[1]-5.5)+'px';
+    handles[i].style.left = (p[0]-half)+'px';
+    handles[i].style.top = (p[1]-half)+'px';
   }
 }
 function edStartResize(e, dir){
