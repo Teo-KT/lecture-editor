@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HTML Visual Editor v3</title>
+<title>HTML Visual Editor v3.1</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 :root{
@@ -276,21 +276,51 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:
 .ed-menu.show{display:block;}
 .ed-menu-item{padding:9px 12px;font-size:12px;color:var(--tx2);border-radius:5px;cursor:pointer;white-space:nowrap;}
 .ed-menu-item:hover{background:var(--bg3);color:var(--tx);}
+.ed-menu-item.disabled{opacity:0.4;cursor:default;}
+/* ===== v3.1: slide reorder + google drive ===== */
+.slide-thumb[draggable="true"]{cursor:grab;}
+.slide-thumb.drag-over{border-color:var(--am)!important;box-shadow:0 0 0 2px var(--am);}
+.slide-thumb.dragging{opacity:0.4;}
+.slide-nav .sbtn:disabled{opacity:0.3;cursor:default;}
+.slide-nav .sbtn:disabled:hover{background:var(--bg2);color:var(--tx2);}
+.slide-nav .nav-sep{width:1px;height:20px;background:var(--bg3);margin:0 2px;flex-shrink:0;}
+.slide-order-list{max-height:260px;overflow-y:auto;}
+.slide-order-item{display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:5px;font-size:11px;color:var(--tx2);cursor:grab;margin-bottom:2px;border:1px solid transparent;transition:background 0.12s;}
+.slide-order-item:hover{background:var(--bg3);color:var(--tx);}
+.slide-order-item.active{background:var(--bg3);color:var(--tx);border-color:var(--bl);}
+.slide-order-item.drag-over{border-color:var(--am);}
+.slide-order-item.dragging{opacity:0.4;}
+.slide-order-item .so-num{min-width:22px;text-align:center;font-weight:600;color:var(--tx3);font-size:10px;}
+.slide-order-item .so-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.slide-order-item .so-btn{width:20px;height:20px;border:none;background:transparent;color:var(--tx3);cursor:pointer;border-radius:3px;font-size:9px;flex-shrink:0;}
+.slide-order-item .so-btn:hover{background:var(--bg4);color:var(--tx);}
+.slide-order-item .so-btn:disabled{opacity:0.2;cursor:default;}
+.slide-order-item .so-btn:disabled:hover{background:transparent;color:var(--tx3);}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- 구글 드라이브 연동 설정(공개 식별자만 포함). 구글 라이브러리는 드라이브 버튼을 눌렀을 때만 불러옵니다. -->
+<script src="drive-config.js"></script>
 </head>
 <body>
 
 <!-- ===== TOP BAR ===== -->
 <div class="topbar">
-  <div class="logo">HTML Visual Editor <span>v3</span></div>
+  <div class="logo">HTML Visual Editor <span>v3.1</span></div>
   <div class="sep"></div>
   <button class="btn" onclick="openFile()" title="Ctrl/Cmd+O">📂 열기</button>
   <button class="btn btn-success" onclick="saveFile()" title="Ctrl/Cmd+S">💾 저장</button>
   <button class="btn" onclick="saveAsFile()">💾 다른 이름 저장</button>
   <button class="btn" onclick="edShowUrlModal()" title="URL에서 HTML 불러오기 (CORS 허용 필요)">🌐 URL 열기</button>
   <div class="ed-export-wrap" style="position:relative;display:inline-flex;">
-    <button class="btn" onclick="edToggleExportMenu(event)" title="PDF 또는 PNG로 내보내기">⤓ 내보내기 ▾</button>
+    <button class="btn" id="btnDrive" onclick="edToggleMenu(event,'edDriveMenu')" title="구글 드라이브에서 열기 / 드라이브에 저장">☁ 드라이브 ▾</button>
+    <div class="ed-menu" id="edDriveMenu">
+      <div class="ed-menu-item" onclick="edDrive.open()">📂 드라이브에서 열기…</div>
+      <div class="ed-menu-item" id="edDriveSaveItem" onclick="edDrive.save()">💾 드라이브에 저장 (같은 파일 덮어쓰기)</div>
+      <div class="ed-menu-item" onclick="edDrive.disconnect()">🔌 연결 해제 (액세스 토큰 폐기)</div>
+    </div>
+  </div>
+  <div class="ed-export-wrap" style="position:relative;display:inline-flex;">
+    <button class="btn" onclick="edToggleMenu(event,'edExportMenu')" title="PDF 또는 PNG로 내보내기">⤓ 내보내기 ▾</button>
     <div class="ed-menu" id="edExportMenu">
       <div class="ed-menu-item" onclick="edExportPDF()">🖨 PDF로 내보내기 (인쇄 → PDF 저장)</div>
       <div class="ed-menu-item" onclick="edExportPNG()">🖼 PNG 이미지로 내보내기</div>
@@ -429,12 +459,18 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:
       <button class="sbtn" onclick="slideGo(-1)" title="이전 슬라이드 (PageUp)">◀</button>
       <div class="slide-info" id="slideInfo">1 / 1</div>
       <button class="sbtn" onclick="slideGo(1)" title="다음 슬라이드 (PageDown)">▶</button>
-      <div class="slide-thumbs" id="slideThumbs"></div>
+      <div class="nav-sep"></div>
+      <button class="sbtn" id="slideMoveL" onclick="slideMoveCurrent(-1)" title="현재 슬라이드를 한 칸 앞으로 이동 (Alt+PageUp)">⇠</button>
+      <button class="sbtn" id="slideMoveR" onclick="slideMoveCurrent(1)" title="현재 슬라이드를 한 칸 뒤로 이동 (Alt+PageDown)">⇢</button>
+      <div class="slide-thumbs" id="slideThumbs" title="번호를 드래그해서 순서를 바꿀 수 있습니다"></div>
     </div>
     <div id="welcomeScreen" class="welcome">
       <h2>HTML Visual Editor <span style="color:var(--bl);font-weight:400;">v3</span></h2>
-      <p>HTML 파일을 열어서 시각적으로 편집하세요.<br>텍스트, 색상, 크기, 간격 등을 직접 수정하고 저장할 수 있습니다.<br><br><b style="color:var(--am);">✨ NEW</b> — 토글(details/summary) 요소를 펼치고 접어 내부 콘텐츠도 편집 가능!<br><b style="color:var(--pr);">🆕 v3</b> 도형 삽입 · 8방향 리사이즈 핸들 · 스타일 패널 · URL 열기 · PDF/PNG 내보내기</p>
-      <button class="btn btn-primary" onclick="openFile()" style="font-size:14px;padding:10px 24px;">📂 HTML 파일 열기</button>
+      <p>HTML 파일을 열어서 시각적으로 편집하세요.<br>텍스트, 색상, 크기, 간격 등을 직접 수정하고 저장할 수 있습니다.<br><br><b style="color:var(--am);">✨ NEW</b> — 토글(details/summary) 요소를 펼치고 접어 내부 콘텐츠도 편집 가능!<br><b style="color:var(--pr);">🆕 v3</b> 도형 삽입 · 8방향 리사이즈 핸들 · 스타일 패널 · URL 열기 · PDF/PNG 내보내기<br><b style="color:var(--gn);">☁ v3.1</b> 슬라이드 순서 변경(드래그) · 구글 드라이브에서 열기/저장</p>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary" onclick="openFile()" style="font-size:14px;padding:10px 24px;">📂 HTML 파일 열기</button>
+        <button class="btn" onclick="edDrive.open()" style="font-size:14px;padding:10px 24px;">☁ 드라이브에서 열기</button>
+      </div>
       <div class="shortcut-list">
         <strong>단축키</strong><br>
         <kbd class="kbd">Ctrl/⌘+O</kbd> 열기 &nbsp;
@@ -459,6 +495,13 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:
     <div class="panel-section">
       <h3>선택된 요소</h3>
       <div class="el-info" id="elInfo">선택 없음</div>
+    </div>
+
+    <!-- Slide order (shown for reveal.js / 1920x1080 decks) -->
+    <div class="panel-section" id="slideOrderSection" style="display:none;">
+      <h3>슬라이드 순서 <span style="font-size:10px;font-weight:400;color:var(--tx3);">(드래그 또는 ▲▼)</span></h3>
+      <div class="slide-order-list" id="slideOrderList"></div>
+      <p style="font-size:10px;color:var(--tx3);margin-top:6px;line-height:1.5;">💡 상단 번호 칩을 끌어 놓거나, 항목의 ▲▼ 또는 Alt+PageUp/PageDown으로 옮깁니다. 저장하면 바뀐 순서가 파일에 반영됩니다.</p>
     </div>
 
     <!-- Toggle Control Panel (shown when toggle elements exist) -->
@@ -646,7 +689,9 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:
       <strong>3. 텍스트 편집</strong> — 편집 모드(T)에서 텍스트를 직접 클릭하여 수정합니다.<br>
       <strong>4. 속성 변경</strong> — 우측 패널에서 색상, 크기, 간격 등을 조정합니다.<br>
       <strong>5. 토글 제어</strong> — 더블클릭으로 토글 요소를 펼치고 접습니다. 우측 패널에서 일괄 제어 가능합니다.<br>
-      <strong>6. 저장</strong> — 💾 버튼 또는 Ctrl/⌘+S로 수정된 HTML을 저장합니다.
+      <strong>6. 저장</strong> — 💾 버튼 또는 Ctrl/⌘+S로 수정된 HTML을 저장합니다.<br>
+      <strong>7. 슬라이드 순서</strong> — 상단 번호 칩을 드래그하거나 우측 "슬라이드 순서" 패널의 ▲▼로 옮깁니다.<br>
+      <strong>8. 구글 드라이브</strong> — ☁ 드라이브 메뉴로 드라이브의 HTML을 열고, 편집 후 같은 파일에 저장합니다. 선택한 파일에만 접근합니다.
     </p>
     <div class="btn-row">
       <button class="btn btn-primary" onclick="document.getElementById('helpModal').classList.remove('show')">확인</button>
@@ -775,6 +820,7 @@ let currentSlide = 0;
 let totalSlides = 0;
 let slideElements = [];        // Direct DOM references to <section> slides
 let toggleElements = [];       // Tracked <details> elements in iframe
+let driveFile = null;          // { id, name, modifiedTime, canEdit } when the open file came from Google Drive
 
 const frame = document.getElementById('editorFrame');
 const canvasFrame = document.getElementById('canvasFrame');
@@ -787,10 +833,9 @@ async function openFile() {
       const [handle] = await window.showOpenFilePicker({
         types: [{ description: 'HTML Files', accept: { 'text/html': ['.html', '.htm'] } }]
       });
-      fileHandle = handle;
       const file = await handle.getFile();
       const text = await file.text();
-      loadHTML(text, file.name);
+      loadHTML(text, file.name, { handle });
       return;
     } catch (e) {
       if (e.name === 'AbortError') return;
@@ -808,15 +853,25 @@ function handleFileOpen(e) {
   e.target.value = '';
 }
 
-function loadHTML(html, name) {
+function loadHTML(html, name, opts) {
+  opts = opts || {};
+  // A newly opened file replaces any previous save target (local handle or Drive file),
+  // so "저장" never overwrites the file that was open before.
+  fileHandle = opts.handle || null;
+  driveFile = opts.drive || null;
   originalHTML = html;
   currentFile = name;
-  document.getElementById('fileName').textContent = name;
+  document.getElementById('fileName').textContent = (driveFile ? '☁ ' : '') + name;
+  document.getElementById('fileName').title = driveFile ? '구글 드라이브 파일 (저장 시 같은 파일에 덮어씀)' : name;
   undoStack = [];
   redoStack = [];
   selectedEl = null;
   selectedEls = [];
   currentSlide = 0;
+  totalSlides = 0;
+  slideElements = [];
+  document.getElementById('slideOrderSection').style.display = 'none';
+  edDriveUpdateMenu();
 
   welcome.style.display = 'none';
   canvasFrame.style.display = 'block';
@@ -879,6 +934,7 @@ function loadHTML(html, name) {
 async function saveFile() {
   if (!currentFile) return;
   const html = getEditedHTML();
+  if (driveFile) { await edDrive.save(html); return; }
   if (fileHandle) {
     try {
       const writable = await fileHandle.createWritable();
@@ -1633,6 +1689,8 @@ function setupIframeListeners() {
     if ((selectedEl || selectedEls.length) && ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
       nudgeElement(e.key, e.shiftKey ? 10 : 1);
     }
+    if (e.altKey && e.key === 'PageDown') { slideMoveCurrent(1); return; }
+    if (e.altKey && e.key === 'PageUp') { slideMoveCurrent(-1); return; }
     if (e.key === 'PageDown' || (e.key === 'ArrowRight' && !selectedEl && !selectedEls.length)) slideGo(1);
     if (e.key === 'PageUp' || (e.key === 'ArrowLeft' && !selectedEl && !selectedEls.length)) slideGo(-1);
   }, true);
@@ -2106,6 +2164,10 @@ function updateSlideInfo() {
   document.querySelectorAll('.slide-thumb').forEach((t, i) => {
     t.classList.toggle('active', i === currentSlide);
   });
+  document.querySelectorAll('.slide-order-item').forEach((t, i) => {
+    t.classList.toggle('active', i === currentSlide);
+  });
+  updateSlideMoveButtons();
 }
 
 function buildSlideThumbs() {
@@ -2113,10 +2175,123 @@ function buildSlideThumbs() {
   container.innerHTML = '';
   for (let i = 0; i < totalSlides; i++) {
     const thumb = document.createElement('div');
-    thumb.className = 'slide-thumb' + (i === 0 ? ' active' : '');
+    thumb.className = 'slide-thumb' + (i === currentSlide ? ' active' : '');
     thumb.textContent = i + 1;
+    thumb.title = slideTitle(slideElements[i], i) + '  (드래그하여 순서 변경)';
     thumb.onclick = () => slideGoTo(i);
+    attachSlideDnD(thumb, i);
     container.appendChild(thumb);
+  }
+  buildSlideOrderList();
+  updateSlideMoveButtons();
+}
+
+// ===== v3.1: SLIDE REORDER =====
+// Works for both deck (#stage > section.slide) and reveal.js (.slides > section) files.
+// The <section> is physically moved in the iframe DOM, so saving writes the new order.
+function slideTitle(sec, i) {
+  let t = '';
+  try {
+    const h = sec.querySelector('h1, h2, h3, .title, .slide-title');
+    t = (h ? h.textContent : (sec.textContent || '')).replace(/[▼▶] ?(펼침|접힘)/g, '').replace(/\s+/g, ' ').trim();
+  } catch(e) {}
+  if (!t) t = '슬라이드 ' + (i + 1);
+  return t.length > 40 ? t.substring(0, 40) + '…' : t;
+}
+
+function slideMove(from, to) {
+  if ((!isRevealFile && !isDeckFile) || totalSlides < 2) return;
+  if (from === to || from < 0 || to < 0 || from >= totalSlides || to >= totalSlides) return;
+  const el = slideElements[from];
+  const order = slideElements.slice();
+  order.splice(from, 1);
+  order.splice(to, 0, el);
+  // Place `el` before the slide that follows it in the new order, or after the one preceding it.
+  const next = order[to + 1];
+  const prev = order[to - 1];
+  if (next) next.parentNode.insertBefore(el, next);
+  else if (prev) prev.parentNode.insertBefore(el, prev.nextSibling);
+  slideElements = order;
+  currentSlide = to;
+  if (isRevealFile) {
+    try {
+      const win = frame.contentWindow;
+      if (win && win.Reveal && typeof win.Reveal.sync === 'function') win.Reveal.sync();
+    } catch(e) {}
+  }
+  buildSlideThumbs();
+  slideGoTo(to);
+  pushUndo(`슬라이드 이동: ${from + 1} → ${to + 1}`);
+  showStatus(`슬라이드 ${from + 1}번을 ${to + 1}번 위치로 옮겼습니다`);
+}
+
+function slideMoveCurrent(delta) {
+  slideMove(currentSlide, currentSlide + delta);
+}
+
+function updateSlideMoveButtons() {
+  const l = document.getElementById('slideMoveL'), r = document.getElementById('slideMoveR');
+  if (l) l.disabled = currentSlide <= 0;
+  if (r) r.disabled = currentSlide >= totalSlides - 1;
+}
+
+let slideDragFrom = -1;
+function attachSlideDnD(node, index) {
+  node.draggable = true;
+  node.addEventListener('dragstart', (e) => {
+    slideDragFrom = index;
+    node.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', String(index)); } catch(_) {}
+  });
+  node.addEventListener('dragend', () => {
+    node.classList.remove('dragging');
+    slideDragFrom = -1;
+    document.querySelectorAll('.slide-thumb.drag-over, .slide-order-item.drag-over').forEach(n => n.classList.remove('drag-over'));
+  });
+  node.addEventListener('dragover', (e) => {
+    if (slideDragFrom < 0) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    node.classList.add('drag-over');
+  });
+  node.addEventListener('dragleave', () => node.classList.remove('drag-over'));
+  node.addEventListener('drop', (e) => {
+    if (slideDragFrom < 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    node.classList.remove('drag-over');
+    const from = slideDragFrom;
+    slideDragFrom = -1;
+    if (from !== index) slideMove(from, index);
+  });
+}
+
+function buildSlideOrderList() {
+  const sec = document.getElementById('slideOrderSection');
+  const list = document.getElementById('slideOrderList');
+  if (!sec || !list) return;
+  const show = (isRevealFile || isDeckFile) && totalSlides > 0;
+  sec.style.display = show ? '' : 'none';
+  list.innerHTML = '';
+  if (!show) return;
+  for (let i = 0; i < totalSlides; i++) {
+    const item = document.createElement('div');
+    item.className = 'slide-order-item' + (i === currentSlide ? ' active' : '');
+    const t = slideTitle(slideElements[i], i);
+    item.innerHTML = '<span class="so-num"></span><span class="so-title"></span>'
+      + '<button class="so-btn" title="위로 (앞으로)">▲</button><button class="so-btn" title="아래로 (뒤로)">▼</button>';
+    item.querySelector('.so-num').textContent = i + 1;
+    item.querySelector('.so-title').textContent = t;   // textContent: document text is never parsed as HTML here
+    item.title = t;
+    const btns = item.querySelectorAll('.so-btn');
+    btns[0].disabled = (i === 0);
+    btns[1].disabled = (i === totalSlides - 1);
+    btns[0].onclick = (e) => { e.stopPropagation(); slideMove(i, i - 1); };
+    btns[1].onclick = (e) => { e.stopPropagation(); slideMove(i, i + 1); };
+    item.onclick = () => slideGoTo(i);
+    attachSlideDnD(item, i);
+    list.appendChild(item);
   }
 }
 
@@ -2822,10 +2997,15 @@ async function edLoadUrl(){
 }
 
 // ---- EXPORT ----
-function edToggleExportMenu(e){ if(e){ e.stopPropagation(); } var m=document.getElementById('edExportMenu'); if(m) m.classList.toggle('show'); }
+function edToggleMenu(e, id){
+  if(e){ e.stopPropagation(); }
+  document.querySelectorAll('.ed-menu.show').forEach(function(m){ if(m.id!==id) m.classList.remove('show'); });
+  var m=document.getElementById(id); if(m) m.classList.toggle('show');
+}
+function edToggleExportMenu(e){ edToggleMenu(e,'edExportMenu'); }
 document.addEventListener('click', function(e){
   var inside = e.target.closest ? e.target.closest('.ed-export-wrap') : null;
-  if(!inside){ var m=document.getElementById('edExportMenu'); if(m) m.classList.remove('show'); }
+  document.querySelectorAll('.ed-menu.show').forEach(function(m){ if(!inside || !inside.contains(m)) m.classList.remove('show'); });
 });
 function edExportPDF(){
   var m=document.getElementById('edExportMenu'); if(m) m.classList.remove('show');
@@ -2861,6 +3041,222 @@ function edExportPNG(){
   if(wrap) wrap.addEventListener('scroll', function(){ try{ edPositionHandles(); }catch(_){} }, { passive:true });
 })();
 
+// ===== v3.1: GOOGLE DRIVE =====
+// Security model
+//  - Scope is only `drive.file`: the app can read/write just the files the user picks in Google's own
+//    Picker dialog. It cannot list or open anything else in the Drive.
+//  - The access token lives in this closure only (no localStorage/sessionStorage/cookies) and expires
+//    within an hour; "연결 해제" revokes it immediately.
+//  - Google's libraries (GIS + Picker) are loaded lazily on first use, so users who never touch Drive
+//    never load third-party scripts.
+//  - CLIENT_ID / API_KEY / APP_ID are public identifiers (see drive-config.js); the key must be
+//    referrer-restricted in Google Cloud Console, and the OAuth client is bound to this site's origin.
+const edDrive = (function(){
+  const SCOPE = 'https://www.googleapis.com/auth/drive.file';
+  const API = 'https://www.googleapis.com/drive/v3/files/';
+  const UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files/';
+  const MAX_BYTES = 25 * 1024 * 1024;
+  let token = null;        // { t, exp } — memory only
+  let tokenClient = null;
+  let pending = null;      // resolver for the in-flight token request
+  let libsPromise = null;
+  let pickerLoaded = false;
+
+  function cfg(){ return window.LECTURE_EDITOR_DRIVE || {}; }
+  function isSet(v){ return typeof v === 'string' && v.trim().length > 8 && !/^(YOUR_|<|1234567890)/.test(v) && v.indexOf('...') < 0; }
+  function configured(){ const c = cfg(); return isSet(c.CLIENT_ID) && isSet(c.API_KEY) && isSet(c.APP_ID); }
+  function closeMenu(){ const m = document.getElementById('edDriveMenu'); if (m) m.classList.remove('show'); }
+
+  function loadScript(src){
+    return new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = src; s.async = true;
+      s.onload = () => res();
+      s.onerror = () => rej(new Error('구글 라이브러리를 불러오지 못했습니다: ' + src));
+      document.head.appendChild(s);
+    });
+  }
+  function loadLibs(){
+    if (libsPromise) return libsPromise;
+    libsPromise = Promise.all([
+      (window.google && google.accounts && google.accounts.oauth2) ? Promise.resolve() : loadScript('https://accounts.google.com/gsi/client'),
+      window.gapi ? Promise.resolve() : loadScript('https://apis.google.com/js/api.js')
+    ]).then(() => new Promise((res, rej) => {
+      if (pickerLoaded) return res();
+      gapi.load('picker', { callback: () => { pickerLoaded = true; res(); }, onerror: () => rej(new Error('Picker 라이브러리를 불러오지 못했습니다.')) });
+    })).catch(err => { libsPromise = null; throw err; });
+    return libsPromise;
+  }
+
+  function tokenValid(){ return !!(token && token.t && Date.now() < token.exp); }
+  function ensureClient(){
+    if (tokenClient) return;
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: cfg().CLIENT_ID,
+      scope: SCOPE,
+      callback: (resp) => {
+        const p = pending; pending = null;
+        if (!p) return;
+        if (resp && resp.access_token) {
+          const ttl = Math.max(60, (parseInt(resp.expires_in, 10) || 3600) - 60);
+          token = { t: resp.access_token, exp: Date.now() + ttl * 1000 };
+          p.resolve(resp.access_token);
+        } else {
+          p.reject(new Error((resp && (resp.error_description || resp.error)) || '구글 로그인에 실패했습니다.'));
+        }
+      },
+      error_callback: (err) => {
+        const p = pending; pending = null;
+        if (!p) return;
+        const t = err && err.type;
+        p.reject(new Error(t === 'popup_closed' ? '로그인 창이 닫혔습니다.' : (t === 'popup_failed_to_open' ? '팝업이 차단되었습니다. 이 사이트의 팝업을 허용해 주세요.' : '구글 로그인에 실패했습니다.')));
+      }
+    });
+  }
+  function getToken(force){
+    if (!force && tokenValid()) return Promise.resolve(token.t);
+    ensureClient();
+    return new Promise((resolve, reject) => {
+      if (pending) pending.reject(new Error('이전 로그인 요청이 취소되었습니다.'));
+      pending = { resolve, reject };
+      tokenClient.requestAccessToken({ prompt: '' });
+    });
+  }
+
+  async function apiFetch(url, init, retried){
+    const t = await getToken();
+    const opts = Object.assign({}, init || {});
+    opts.headers = Object.assign({}, (init && init.headers) || {}, { Authorization: 'Bearer ' + t });
+    const r = await fetch(url, opts);
+    if (r.status === 401 && !retried) { token = null; return apiFetch(url, init, true); }
+    if (!r.ok) {
+      let msg = 'HTTP ' + r.status;
+      try { const j = await r.json(); if (j && j.error && j.error.message) msg += ' — ' + j.error.message; } catch(e) {}
+      if (r.status === 403) msg += '\n(이 파일에 대한 권한이 없거나, API 키/클라이언트 제한 설정을 확인해야 합니다)';
+      throw new Error(msg);
+    }
+    return r;
+  }
+
+  function showPicker(t){
+    return new Promise((resolve) => {
+      const origin = location.protocol + '//' + location.host;
+      const htmlView = new google.picker.DocsView(google.picker.ViewId.DOCS)
+        .setMimeTypes('text/html')
+        .setIncludeFolders(true)
+        .setMode(google.picker.DocsViewMode.LIST);
+      const allView = new google.picker.DocsView(google.picker.ViewId.DOCS)
+        .setIncludeFolders(true)
+        .setMode(google.picker.DocsViewMode.LIST);
+      let done = false;
+      new google.picker.PickerBuilder()
+        .setAppId(cfg().APP_ID)
+        .setOAuthToken(t)
+        .setDeveloperKey(cfg().API_KEY)
+        .setOrigin(origin)
+        .setLocale('ko')
+        .setTitle('편집할 HTML 파일 선택')
+        .addView(htmlView)
+        .addView(allView)
+        .enableFeature(google.picker.Feature.SUPPORT_DRIVES)
+        .setCallback((d) => {
+          if (done || !d || !d.action) return;
+          if (d.action === google.picker.Action.PICKED) { done = true; resolve((d.docs && d.docs[0]) || null); }
+          else if (d.action === google.picker.Action.CANCEL) { done = true; resolve(null); }
+        })
+        .build()
+        .setVisible(true);
+    });
+  }
+
+  function precheck(){
+    if (!configured()) {
+      alert('구글 드라이브 연동이 아직 설정되지 않았습니다.\n\ndrive-config.js 에 CLIENT_ID / API_KEY / APP_ID 를 채워 주세요. 발급 방법은 README의 "구글 드라이브 연동" 절에 있습니다.');
+      return false;
+    }
+    if (location.protocol === 'file:') {
+      alert('드라이브 연동은 http(s)로 접속했을 때만 동작합니다.\n(GitHub Pages 주소로 열거나, 로컬 서버로 실행해 주세요)');
+      return false;
+    }
+    return true;
+  }
+
+  async function open(){
+    closeMenu();
+    if (!precheck()) return;
+    try {
+      showStatus('구글 라이브러리 불러오는 중…');
+      await loadLibs();
+      const t = await getToken();
+      const doc = await showPicker(t);
+      if (!doc) { updateStatus(); return; }
+      showStatus('드라이브에서 불러오는 중: ' + doc.name);
+      const id = doc.id;
+      const q = 'supportsAllDrives=true';
+      const meta = await (await apiFetch(API + encodeURIComponent(id) + '?fields=id,name,mimeType,modifiedTime,size,capabilities(canEdit)&' + q)).json();
+      if (meta.mimeType && meta.mimeType.indexOf('application/vnd.google-apps') === 0) {
+        alert('구글 문서 형식(Docs/Slides/Sheets 등)은 열 수 없습니다. HTML 파일을 선택해 주세요.');
+        updateStatus(); return;
+      }
+      if (meta.size && parseInt(meta.size, 10) > MAX_BYTES) {
+        alert('파일이 너무 큽니다 (25MB 초과). 이미지가 base64로 내장된 경우 크기를 줄여 주세요.');
+        updateStatus(); return;
+      }
+      const text = await (await apiFetch(API + encodeURIComponent(id) + '?alt=media&' + q)).text();
+      const name = meta.name || doc.name || 'drive.html';
+      loadHTML(text, name, { drive: { id, name, modifiedTime: meta.modifiedTime || null, canEdit: !(meta.capabilities && meta.capabilities.canEdit === false) } });
+      showStatus('드라이브 파일 열기 완료: ' + name);
+    } catch (err) {
+      alert('드라이브에서 불러오지 못했습니다.\n\n' + (err && err.message ? err.message : err));
+      updateStatus();
+    }
+  }
+
+  async function save(html){
+    closeMenu();
+    if (!driveFile) { alert('드라이브에서 연 파일이 아닙니다.\n먼저 [☁ 드라이브 → 드라이브에서 열기]로 파일을 불러오면, 저장할 때 같은 파일에 반영됩니다.'); return; }
+    if (!precheck()) return;
+    if (driveFile.canEdit === false) { alert('이 파일에는 편집 권한이 없습니다. [다른 이름 저장]으로 내려받아 주세요.'); return; }
+    try {
+      if (typeof html !== 'string') html = getEditedHTML();
+      showStatus('드라이브에 저장 중…');
+      await loadLibs();
+      const q = 'supportsAllDrives=true';
+      // Detect edits made elsewhere since we opened the file, before overwriting.
+      const cur = await (await apiFetch(API + encodeURIComponent(driveFile.id) + '?fields=modifiedTime&' + q)).json();
+      if (driveFile.modifiedTime && cur.modifiedTime && cur.modifiedTime !== driveFile.modifiedTime) {
+        const when = new Date(cur.modifiedTime).toLocaleString();
+        if (!confirm('이 파일이 다른 곳에서 수정되었습니다 (' + when + ').\n\n덮어쓰시겠습니까? 이전 판은 드라이브의 "버전 기록"에 남습니다.')) { showStatus('저장을 취소했습니다'); return; }
+      }
+      const r = await apiFetch(UPLOAD + encodeURIComponent(driveFile.id) + '?uploadType=media&fields=modifiedTime,name&' + q,
+        { method: 'PATCH', headers: { 'Content-Type': 'text/html; charset=UTF-8' }, body: html });
+      const j = await r.json();
+      if (j && j.modifiedTime) driveFile.modifiedTime = j.modifiedTime;
+      showStatus('드라이브 저장 완료: ' + driveFile.name);
+    } catch (err) {
+      alert('드라이브 저장에 실패했습니다.\n\n' + (err && err.message ? err.message : err) + '\n\n작업 내용을 잃지 않도록 [다른 이름 저장]으로 내려받아 두세요.');
+      updateStatus();
+    }
+  }
+
+  function disconnect(){
+    closeMenu();
+    const t = token && token.t;
+    token = null;
+    if (t && window.google && google.accounts && google.accounts.oauth2) {
+      try { google.accounts.oauth2.revoke(t, function(){}); } catch(e) {}
+    }
+    showStatus(t ? '드라이브 연결을 해제했습니다 (토큰 폐기)' : '연결된 드라이브 세션이 없습니다');
+  }
+
+  return { open, save, disconnect, configured };
+})();
+
+function edDriveUpdateMenu(){
+  const it = document.getElementById('edDriveSaveItem');
+  if (it) it.classList.toggle('disabled', !driveFile);
+}
+
 // ===== KEYBOARD SHORTCUTS =====
 document.addEventListener('keydown', (e) => {
   const isMac = navigator.platform.includes('Mac');
@@ -2875,8 +3271,8 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 't' && !mod && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT') { setMode('edit'); }
   if (e.key === 'Delete' && selectedEl && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT') { deleteSelected(); }
   if (e.key === 'Escape') { deselectAll(); }
-  if (e.key === 'PageDown') { e.preventDefault(); slideGo(1); }
-  if (e.key === 'PageUp') { e.preventDefault(); slideGo(-1); }
+  if (e.key === 'PageDown') { e.preventDefault(); if (e.altKey) slideMoveCurrent(1); else slideGo(1); }
+  if (e.key === 'PageUp') { e.preventDefault(); if (e.altKey) slideMoveCurrent(-1); else slideGo(-1); }
 });
 
 // ===== INIT =====
