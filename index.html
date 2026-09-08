@@ -356,6 +356,7 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:
     <div class="ed-menu" id="edDriveMenu">
       <div class="ed-menu-item" onclick="edDrive.open()">📂 드라이브에서 열기…</div>
       <div class="ed-menu-item" id="edDriveSaveItem" onclick="edDrive.save()">💾 드라이브에 저장 (같은 파일 덮어쓰기)</div>
+      <div class="ed-menu-item" onclick="edDrive.saveAs()">📤 드라이브에 새 파일로 저장…</div>
       <div class="ed-menu-item" onclick="edDrive.disconnect()">🔌 연결 해제 (액세스 토큰 폐기)</div>
     </div>
   </div>
@@ -3459,9 +3460,81 @@ const edDrive = (function(){
     }
   }
 
+  // 드라이브의 저장 폴더를 고른다(취소 시 null)
+  function showFolderPicker(t){
+    const origin = location.protocol + '//' + location.host;
+    return new Promise((resolve) => {
+      const view = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
+        .setMimeTypes('application/vnd.google-apps.folder')
+        .setSelectFolderEnabled(true)
+        .setMode(google.picker.DocsViewMode.LIST);
+      let done = false;
+      new google.picker.PickerBuilder()
+        .setAppId(cfg().APP_ID)
+        .setOAuthToken(t)
+        .setDeveloperKey(cfg().API_KEY)
+        .setOrigin(origin)
+        .setLocale('ko')
+        .setTitle('저장할 드라이브 폴더 선택')
+        .addView(view)
+        .enableFeature(google.picker.Feature.SUPPORT_DRIVES)
+        .setCallback((d) => {
+          if (done || !d || !d.action) return;
+          if (d.action === google.picker.Action.PICKED) { done = true; resolve((d.docs && d.docs[0]) || null); }
+          else if (d.action === google.picker.Action.CANCEL) { done = true; resolve(null); }
+        })
+        .build()
+        .setVisible(true);
+    });
+  }
+
+  // 어디서 열었든(로컬 파일·URL 포함) 현재 문서를 드라이브에 "새 파일"로 올린다.
+  // 업로드 후에는 그 드라이브 파일이 현재 파일이 되어, 이후 저장(⌘S)이 같은 파일을 덮어쓴다.
+  async function saveAs(){
+    closeMenu();
+    if (!currentFile) { alert('먼저 HTML 파일을 열어주세요.'); return; }
+    if (!precheck()) return;
+    try {
+      const name = prompt('드라이브에 저장할 파일 이름:', currentFile);
+      if (!name) { showStatus('저장을 취소했습니다'); return; }
+      showStatus('구글 라이브러리 불러오는 중…');
+      await loadLibs();
+      const t = await getToken();
+      const folder = await showFolderPicker(t);
+      let folderId = folder && folder.id;
+      if (!folderId) {
+        if (!confirm('폴더를 고르지 않았습니다.\n내 드라이브 최상위에 저장할까요?')) { showStatus('저장을 취소했습니다'); return; }
+        folderId = null;
+      }
+      const html = getEditedHTML();
+      showStatus('드라이브에 업로드 중: ' + name);
+      const boundary = '-------lecture-editor-' + Date.now();
+      const meta = { name: name, mimeType: 'text/html' };
+      if (folderId) meta.parents = [folderId];
+      const body =
+        '--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(meta) +
+        '\r\n--' + boundary + '\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n' + html +
+        '\r\n--' + boundary + '--';
+      const r = await apiFetch(UPLOAD.replace(/\/$/, '') + '?uploadType=multipart&fields=id,name,modifiedTime&supportsAllDrives=true',
+        { method: 'POST', headers: { 'Content-Type': 'multipart/related; boundary=' + boundary }, body: body });
+      const j = await r.json();
+      if (!j || !j.id) throw new Error('업로드 응답에 파일 ID가 없습니다.');
+      // 이제부터 이 드라이브 파일이 "현재 파일": 이후 저장은 같은 파일 덮어쓰기
+      driveFile = { id: j.id, name: j.name || name, modifiedTime: j.modifiedTime || null, canEdit: true };
+      currentFile = j.name || name;
+      document.getElementById('fileName').textContent = '☁ ' + currentFile;
+      document.getElementById('fileName').title = '구글 드라이브 파일 (저장 시 같은 파일에 덮어씀)';
+      edDriveUpdateMenu();
+      showStatus('드라이브에 새 파일로 저장 완료: ' + currentFile + (folder ? ' (폴더: ' + folder.name + ')' : ' (내 드라이브)'));
+    } catch (err) {
+      alert('드라이브 업로드에 실패했습니다.\n\n' + (err && err.message ? err.message : err) + '\n\n작업 내용을 잃지 않도록 [다른 이름 저장]으로 내려받아 두세요.');
+      updateStatus();
+    }
+  }
+
   async function save(html){
     closeMenu();
-    if (!driveFile) { alert('드라이브에서 연 파일이 아닙니다.\n먼저 [☁ 드라이브 → 드라이브에서 열기]로 파일을 불러오면, 저장할 때 같은 파일에 반영됩니다.'); return; }
+    if (!driveFile) { alert('드라이브에서 연 파일이 아닙니다.\n\n[📤 드라이브에 새 파일로 저장…]을 쓰면 로컬·URL로 연 파일도 드라이브에 올릴 수 있고, 그 뒤에는 저장할 때 같은 파일에 반영됩니다.'); return; }
     if (!precheck()) return;
     if (driveFile.canEdit === false) { alert('이 파일에는 편집 권한이 없습니다. [다른 이름 저장]으로 내려받아 주세요.'); return; }
     try {
@@ -3496,7 +3569,7 @@ const edDrive = (function(){
     showStatus(t ? '드라이브 연결을 해제했습니다 (토큰 폐기)' : '연결된 드라이브 세션이 없습니다');
   }
 
-  return { open, save, disconnect, configured };
+  return { open, save, saveAs, disconnect, configured };
 })();
 
 function edDriveUpdateMenu(){
