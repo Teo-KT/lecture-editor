@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HTML Visual Editor v3.2</title>
+<title>HTML Visual Editor v3.2.1</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 :root{
@@ -345,7 +345,7 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:
 
 <!-- ===== TOP BAR ===== -->
 <div class="topbar">
-  <div class="logo">HTML Visual Editor <span>v3.2</span></div>
+  <div class="logo">HTML Visual Editor <span>v3.2.1</span></div>
   <div class="sep"></div>
   <button class="btn" onclick="openFile()" title="Ctrl/Cmd+O">📂 열기</button>
   <button class="btn btn-success" onclick="saveFile()" title="Ctrl/Cmd+S">💾 저장</button>
@@ -442,11 +442,13 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:
       <div class="nav-sep"></div>
       <button class="sbtn" id="slideMoveL" onclick="slideMoveCurrent(-1)" title="현재 슬라이드를 한 칸 앞으로 이동 (Alt+PageUp)">⇠</button>
       <button class="sbtn" id="slideMoveR" onclick="slideMoveCurrent(1)" title="현재 슬라이드를 한 칸 뒤로 이동 (Alt+PageDown)">⇢</button>
+      <div class="nav-sep"></div>
+      <button class="sbtn" id="slideDelBtn" onclick="slideDeleteCurrent()" title="현재 슬라이드 삭제 (⌘/Ctrl+Z로 되돌리기)">🗑</button>
       <div class="slide-thumbs" id="slideThumbs" title="번호를 드래그해서 순서를 바꿀 수 있습니다"></div>
     </div>
     <div id="welcomeScreen" class="welcome">
       <h2>HTML Visual Editor <span style="color:var(--bl);font-weight:400;">v3</span></h2>
-      <p>HTML 파일을 열어서 시각적으로 편집하세요.<br>텍스트, 색상, 크기, 간격 등을 직접 수정하고 저장할 수 있습니다.<br><br><b style="color:var(--am);">✨ NEW</b> — 토글(details/summary) 요소를 펼치고 접어 내부 콘텐츠도 편집 가능!<br><b style="color:var(--pr);">🆕 v3</b> 도형 삽입 · 8방향 리사이즈 핸들 · 스타일 패널 · URL 열기 · PDF/PNG 내보내기<br><b style="color:var(--gn);">☁ v3.1</b> 슬라이드 순서 변경(드래그) · 구글 드라이브에서 열기/저장<br><b style="color:var(--am);">🖱 v3.2</b> 우클릭 메뉴(도형·삽입·전체 선택·복사/붙여넣기·배치·정렬) · 정돈된 사이드바</p>
+      <p>HTML 파일을 열어서 시각적으로 편집하세요.<br>텍스트, 색상, 크기, 간격 등을 직접 수정하고 저장할 수 있습니다.<br><br><b style="color:var(--am);">✨ NEW</b> — 토글(details/summary) 요소를 펼치고 접어 내부 콘텐츠도 편집 가능!<br><b style="color:var(--pr);">🆕 v3</b> 도형 삽입 · 8방향 리사이즈 핸들 · 스타일 패널 · URL 열기 · PDF/PNG 내보내기<br><b style="color:var(--gn);">☁ v3.1</b> 슬라이드 순서 변경(드래그) · 구글 드라이브에서 열기/저장<br><b style="color:var(--am);">🖱 v3.2</b> 우클릭 메뉴(도형·삽입·전체 선택·복사/붙여넣기·배치·정렬) · 정돈된 사이드바<br><b style="color:var(--gn);">🖨 v3.2.1</b> PDF 내보내기가 슬라이드 전체를 1장=1페이지로 저장 · 슬라이드 삭제(🗑/✕/Del)</p>
       <div style="display:flex;gap:8px;">
         <button class="btn btn-primary" onclick="openFile()" style="font-size:14px;padding:10px 24px;">📂 HTML 파일 열기</button>
         <button class="btn" onclick="edDrive.open()" style="font-size:14px;padding:10px 24px;">☁ 드라이브에서 열기</button>
@@ -2313,6 +2315,35 @@ function slideMoveCurrent(delta) {
   slideMove(currentSlide, currentSlide + delta);
 }
 
+// ===== 슬라이드 삭제 =====
+// 섹션을 DOM 에서 제거하고 슬라이드 장부(slideElements/totalSlides/currentSlide)를
+// 같이 갱신한다. ⌘/Ctrl+Z 로 되돌릴 수 있다(restoreState 가 덱을 재설정).
+function slideDelete(i) {
+  if ((!isRevealFile && !isDeckFile) || totalSlides === 0) return;
+  if (i < 0 || i >= totalSlides) return;
+  if (totalSlides <= 1) { alert('마지막 남은 슬라이드는 지울 수 없습니다.'); return; }
+  const el = slideElements[i];
+  try { deselectAll(); } catch(e) {}
+  el.remove();
+  slideElements.splice(i, 1);
+  totalSlides = slideElements.length;
+  if (currentSlide >= totalSlides) currentSlide = totalSlides - 1;
+  if (isDeckFile) {
+    slideElements.forEach((sec, k) => sec.classList.toggle('__ed_current', k === currentSlide));
+  }
+  if (isRevealFile) {
+    try {
+      const win = frame.contentWindow;
+      if (win && win.Reveal && typeof win.Reveal.sync === 'function') win.Reveal.sync();
+    } catch(e) {}
+  }
+  buildSlideThumbs();
+  slideGoTo(currentSlide);
+  pushUndo('슬라이드 삭제: ' + (i + 1) + '번');
+  showStatus('슬라이드 ' + (i + 1) + '번을 지웠습니다 (⌘/Ctrl+Z 되돌리기)');
+}
+function slideDeleteCurrent() { slideDelete(currentSlide); }
+
 function updateSlideMoveButtons() {
   const l = document.getElementById('slideMoveL'), r = document.getElementById('slideMoveR');
   if (l) l.disabled = currentSlide <= 0;
@@ -2364,7 +2395,8 @@ function buildSlideOrderList() {
     item.className = 'slide-order-item' + (i === currentSlide ? ' active' : '');
     const t = slideTitle(slideElements[i], i);
     item.innerHTML = '<span class="so-num"></span><span class="so-title"></span>'
-      + '<button class="so-btn" title="위로 (앞으로)">▲</button><button class="so-btn" title="아래로 (뒤로)">▼</button>';
+      + '<button class="so-btn" title="위로 (앞으로)">▲</button><button class="so-btn" title="아래로 (뒤로)">▼</button>'
+      + '<button class="so-btn so-del" title="이 슬라이드 삭제">✕</button>';
     item.querySelector('.so-num').textContent = i + 1;
     item.querySelector('.so-title').textContent = t;   // textContent: document text is never parsed as HTML here
     item.title = t;
@@ -2373,6 +2405,8 @@ function buildSlideOrderList() {
     btns[1].disabled = (i === totalSlides - 1);
     btns[0].onclick = (e) => { e.stopPropagation(); slideMove(i, i - 1); };
     btns[1].onclick = (e) => { e.stopPropagation(); slideMove(i, i + 1); };
+    btns[2].disabled = (totalSlides <= 1);
+    btns[2].onclick = (e) => { e.stopPropagation(); slideDelete(i); };
     item.onclick = () => slideGoTo(i);
     attachSlideDnD(item, i);
     list.appendChild(item);
@@ -2465,6 +2499,12 @@ function edSelectionList() {
 function deleteSelected() {
   const els = edSelectionList();
   if (!els.length) return;
+  // 슬라이드 <section> 자체가 선택돼 있으면 슬라이드 삭제 경로로 보낸다
+  // (장부 갱신 없이 지우면 썸네일·현재 슬라이드가 어긋나 삭제가 안 되는 것처럼 보인다)
+  if ((isDeckFile || isRevealFile) && els.length === 1) {
+    const si = slideElements.indexOf(els[0]);
+    if (si >= 0) { slideDelete(si); return; }
+  }
   const label = els.length > 1 ? `요소 ${els.length}개 삭제` : `요소 삭제: <${els[0].tagName.toLowerCase()}>`;
   els.forEach(el => el.remove());
   deselectAll();
@@ -2802,6 +2842,7 @@ function restoreState(html) {
   selectedEl = null;
   setupIframeListeners();
   if (isDeckFile) setupDeckMode();
+  if (isRevealFile) { try { setupSlideNav(); } catch(e) {} }
   setTimeout(() => scanToggleElements(), 100);
 }
 
@@ -3154,15 +3195,74 @@ document.addEventListener('click', function(e){
   var inside = e.target.closest ? e.target.closest('.ed-export-wrap') : null;
   document.querySelectorAll('.ed-menu.show').forEach(function(m){ if(!inside || !inside.contains(m)) m.classList.remove('show'); });
 });
+// 슬라이드 덱을 "전 슬라이드 = 1장씩" 인쇄 전용 문서로 변환한다.
+// 덱 자체의 내비 스크립트는 한 번에 한 장만 보여주고(@media print 가 없는 덱은
+// 그대로 1페이지만 인쇄됨), 있어도 1080px 경계에서 슬라이드가 두 페이지로
+// 쪼개지는 일이 잦아, 에디터가 직접 페이지를 편성한다.
+function edBuildPrintDoc(html){
+  try{
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    var W = isRevealFile ? 1280 : 1920, H = isRevealFile ? 720 : 1080;
+    // 덱 런타임(한 장씩 표시·키보드 내비)은 인쇄본에서 제거 — 정적 문서로 인쇄
+    doc.querySelectorAll('script').forEach(function(s){ s.remove(); });
+    var slideSel = isRevealFile ? '.reveal .slides section' : '.slide';
+    doc.querySelectorAll(slideSel).forEach(function(s){ s.removeAttribute('hidden'); });
+    var st = doc.createElement('style');
+    st.id = 'editor-print-styles';
+    var common =
+      '@page{size:' + W + 'px ' + H + 'px;margin:0}' +
+      'html,body{margin:0!important;padding:0!important;width:auto!important;height:auto!important;' +
+        'overflow:visible!important;background:#fff!important}' +
+      '*{animation:none!important;transition:none!important}';
+    if(isRevealFile){
+      st.textContent = common +
+        '.reveal,.reveal .slides{position:static!important;inset:auto!important;width:auto!important;' +
+          'height:auto!important;transform:none!important;overflow:visible!important}' +
+        '.reveal .slides section{display:block!important;position:relative!important;inset:auto!important;' +
+          'opacity:1!important;visibility:visible!important;transform:none!important;margin:0!important;' +
+          'width:' + W + 'px!important;height:' + H + 'px!important;overflow:hidden!important;' +
+          'box-sizing:border-box!important;page-break-after:always;break-after:page;' +
+          'page-break-inside:avoid;break-inside:avoid}' +
+        '.reveal .slides section:has(> section){height:auto!important;overflow:visible!important;' +
+          'page-break-after:auto;break-after:auto;page-break-inside:auto;break-inside:auto}' +
+        '.reveal .slides section:last-child{page-break-after:auto;break-after:auto}' +
+        '.backgrounds,.progress,.controls{display:none!important}' +
+        '.fragment{opacity:1!important;visibility:visible!important;transform:none!important}';
+    } else {
+      st.textContent = common +
+        '#stage{position:static!important;display:block!important;inset:auto!important;width:auto!important;' +
+          'height:auto!important;overflow:visible!important;transform:none!important;padding:0!important}' +
+        '.slide{display:flex!important;position:relative!important;inset:auto!important;margin:0!important;' +
+          'transform:none!important;opacity:1!important;visibility:visible!important;' +
+          'width:' + W + 'px!important;height:' + H + 'px!important;overflow:hidden!important;' +
+          'box-sizing:border-box!important;box-shadow:none!important;page-break-after:always;break-after:page;' +
+          'page-break-inside:avoid;break-inside:avoid}' +
+        '.slide:last-of-type{page-break-after:auto;break-after:auto}' +
+        '.nav,.bar,.hint,#nav,#bar,#hint{display:none!important}';
+    }
+    (doc.head || doc.documentElement).appendChild(st);
+    // 폰트·이미지 로드가 끝난 뒤 인쇄 대화상자를 연다(부모 쪽 타이머 경쟁 제거)
+    var tr = doc.createElement('script');
+    tr.textContent =
+      "window.addEventListener('load',function(){setTimeout(function(){" +
+      "try{window.focus();window.print();}catch(e){}},500);});";
+    (doc.body || doc.documentElement).appendChild(tr);
+    return '<!doctype html>\n' + doc.documentElement.outerHTML;
+  }catch(e){ console.warn('print doc build failed', e); return null; }
+}
 function edExportPDF(){
   var m=document.getElementById('edExportMenu'); if(m) m.classList.remove('show');
   if(!currentFile){ alert('먼저 HTML 파일을 열어주세요.'); return; }
   var html = getEditedHTML();
+  var printable = (isDeckFile || isRevealFile) ? edBuildPrintDoc(html) : null;
   var w = window.open('', '_blank');
   if(!w){ alert('팝업이 차단되었습니다. 팝업을 허용한 뒤 다시 시도하세요.'); return; }
-  w.document.open(); w.document.write(html); w.document.close();
-  setTimeout(function(){ try{ w.focus(); w.print(); }catch(_){} }, 700);
-  showStatus('PDF 내보내기: 인쇄 창에서 "PDF로 저장"을 선택하세요');
+  w.document.open(); w.document.write(printable || html); w.document.close();
+  try{ w.document.title = currentFile.replace(/\.html?$/i,''); }catch(_){}
+  if(!printable){ setTimeout(function(){ try{ w.focus(); w.print(); }catch(_){} }, 700); }
+  showStatus(printable
+    ? 'PDF 내보내기: 슬라이드 전체 ' + (totalSlides || '') + '장 — 인쇄 창에서 "PDF로 저장"을 선택하세요'
+    : 'PDF 내보내기: 인쇄 창에서 "PDF로 저장"을 선택하세요');
 }
 function edExportPNG(){
   var m=document.getElementById('edExportMenu'); if(m) m.classList.remove('show');
@@ -3584,6 +3684,7 @@ function edCtxItems() {
     ]},
     { sep: true },
     { label: '🗑 삭제', key: 'Del', disabled: !has, run: () => deleteSelected() },
+    { label: '🗑 현재 슬라이드 삭제', disabled: !((isDeckFile || isRevealFile) && totalSlides > 1), run: () => slideDeleteCurrent() },
   ];
 }
 
