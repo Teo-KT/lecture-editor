@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HTML Visual Editor v3.2.1</title>
+<title>HTML Visual Editor v3.2.2</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 :root{
@@ -345,7 +345,7 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:
 
 <!-- ===== TOP BAR ===== -->
 <div class="topbar">
-  <div class="logo">HTML Visual Editor <span>v3.2.1</span></div>
+  <div class="logo">HTML Visual Editor <span>v3.2.2</span></div>
   <div class="sep"></div>
   <button class="btn" onclick="openFile()" title="Ctrl/Cmd+O">📂 열기</button>
   <button class="btn btn-success" onclick="saveFile()" title="Ctrl/Cmd+S">💾 저장</button>
@@ -363,6 +363,7 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:
   <div class="ed-export-wrap" style="position:relative;display:inline-flex;">
     <button class="btn" onclick="edToggleMenu(event,'edExportMenu')" title="PDF 또는 PNG로 내보내기">⤓ 내보내기 ▾</button>
     <div class="ed-menu" id="edExportMenu">
+      <div class="ed-menu-item" onclick="edExportPDFAuto()">🖨 PDF로 저장 (자동 변환 · 권장)</div>
       <div class="ed-menu-item" onclick="edExportPDF()">🖨 PDF로 내보내기 (인쇄 → PDF 저장)</div>
       <div class="ed-menu-item" onclick="edExportPNG()">🖼 PNG 이미지로 내보내기</div>
     </div>
@@ -449,7 +450,7 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:
     </div>
     <div id="welcomeScreen" class="welcome">
       <h2>HTML Visual Editor <span style="color:var(--bl);font-weight:400;">v3</span></h2>
-      <p>HTML 파일을 열어서 시각적으로 편집하세요.<br>텍스트, 색상, 크기, 간격 등을 직접 수정하고 저장할 수 있습니다.<br><br><b style="color:var(--am);">✨ NEW</b> — 토글(details/summary) 요소를 펼치고 접어 내부 콘텐츠도 편집 가능!<br><b style="color:var(--pr);">🆕 v3</b> 도형 삽입 · 8방향 리사이즈 핸들 · 스타일 패널 · URL 열기 · PDF/PNG 내보내기<br><b style="color:var(--gn);">☁ v3.1</b> 슬라이드 순서 변경(드래그) · 구글 드라이브에서 열기/저장<br><b style="color:var(--am);">🖱 v3.2</b> 우클릭 메뉴(도형·삽입·전체 선택·복사/붙여넣기·배치·정렬) · 정돈된 사이드바<br><b style="color:var(--gn);">🖨 v3.2.1</b> PDF 내보내기가 슬라이드 전체를 1장=1페이지로 저장 · 슬라이드 삭제(🗑/✕/Del)</p>
+      <p>HTML 파일을 열어서 시각적으로 편집하세요.<br>텍스트, 색상, 크기, 간격 등을 직접 수정하고 저장할 수 있습니다.<br><br><b style="color:var(--am);">✨ NEW</b> — 토글(details/summary) 요소를 펼치고 접어 내부 콘텐츠도 편집 가능!<br><b style="color:var(--pr);">🆕 v3</b> 도형 삽입 · 8방향 리사이즈 핸들 · 스타일 패널 · URL 열기 · PDF/PNG 내보내기<br><b style="color:var(--gn);">☁ v3.1</b> 슬라이드 순서 변경(드래그) · 구글 드라이브에서 열기/저장<br><b style="color:var(--am);">🖱 v3.2</b> 우클릭 메뉴(도형·삽입·전체 선택·복사/붙여넣기·배치·정렬) · 정돈된 사이드바<br><b style="color:var(--gn);">🖨 v3.2.1</b> PDF 내보내기가 슬라이드 전체를 1장=1페이지로 저장 · 슬라이드 삭제(🗑/✕/Del) · PDF 자동 변환(인쇄창 불필요)</p>
       <div style="display:flex;gap:8px;">
         <button class="btn btn-primary" onclick="openFile()" style="font-size:14px;padding:10px 24px;">📂 HTML 파일 열기</button>
         <button class="btn" onclick="edDrive.open()" style="font-size:14px;padding:10px 24px;">☁ 드라이브에서 열기</button>
@@ -977,6 +978,8 @@ function getEditedHTML() {
     if (injected) injected.remove();
     const deckStyles = doc.getElementById('editor-deck-styles');
     if (deckStyles) deckStyles.remove();
+    const rasterStyles = doc.getElementById('editor-raster-styles');
+    if (rasterStyles) rasterStyles.remove();
     if (isDeckFile) {
       // Strip editor-only slide state so the saved deck runs standalone.
       doc.querySelectorAll('.__ed_current').forEach(el => el.classList.remove('__ed_current'));
@@ -3200,13 +3203,14 @@ document.addEventListener('click', function(e){
 // 덱 자체의 내비 스크립트는 한 번에 한 장만 보여주고(@media print 가 없는 덱은
 // 그대로 1페이지만 인쇄됨), 있어도 1080px 경계에서 슬라이드가 두 페이지로
 // 쪼개지는 일이 잦아, 에디터가 직접 페이지를 편성한다.
-function edBuildPrintDoc(html){
+function edBuildPrintDoc(html, kind){
   try{
     var doc = new DOMParser().parseFromString(html, 'text/html');
-    var W = isRevealFile ? 1280 : 1920, H = isRevealFile ? 720 : 1080;
-    // 덱 런타임(한 장씩 표시·키보드 내비)은 인쇄본에서 제거 — 정적 문서로 인쇄
+    var isReveal = kind === 'reveal';
+    var W = isReveal ? 1280 : 1920, H = isReveal ? 720 : 1080;
+    // 덱 런타임(한 장씩 표시·키보드 내비·스크롤 등장 애니메이션)은 인쇄본에서 제거
     doc.querySelectorAll('script').forEach(function(s){ s.remove(); });
-    var slideSel = isRevealFile ? '.reveal .slides section' : '.slide';
+    var slideSel = isReveal ? '.reveal .slides section' : '.slide';
     doc.querySelectorAll(slideSel).forEach(function(s){ s.removeAttribute('hidden'); });
     var st = doc.createElement('style');
     st.id = 'editor-print-styles';
@@ -3214,8 +3218,22 @@ function edBuildPrintDoc(html){
       '@page{size:' + W + 'px ' + H + 'px;margin:0}' +
       'html,body{margin:0!important;padding:0!important;width:auto!important;height:auto!important;' +
         'overflow:visible!important;background:#fff!important}' +
-      '*{animation:none!important;transition:none!important}';
-    if(isRevealFile){
+      '*{animation:none!important;transition:none!important;' +
+        '-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
+      // 스크롤/클릭으로 등장하는 요소는 인쇄본에서 모두 보이게 (JS 제거의 보완)
+      '.animate,.fragment,.aos-init,[data-aos]' +
+        '{opacity:1!important;visibility:visible!important;transform:none!important}';
+    if(kind === 'slides'){
+      // 스크롤형 덱(고정 무대 없이 .slide 섹션이 이어지는 문서):
+      // 각 슬라이드를 1920×1080 한 페이지에 정확히 담는다 (100vh 등 가변 높이 제거)
+      st.textContent = common +
+        'html,body{width:' + W + 'px!important}' +
+        '.slide{width:' + W + 'px!important;height:' + H + 'px!important;' +
+          'min-height:0!important;max-height:none!important;margin:0!important;' +
+          'box-sizing:border-box!important;overflow:hidden!important;position:relative!important;' +
+          'page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid}' +
+        '.slide:last-of-type{page-break-after:auto;break-after:auto}';
+    } else if(isReveal){
       st.textContent = common +
         '.reveal,.reveal .slides{position:static!important;inset:auto!important;width:auto!important;' +
           'height:auto!important;transform:none!important;overflow:visible!important}' +
@@ -3251,19 +3269,102 @@ function edBuildPrintDoc(html){
     return '<!doctype html>\n' + doc.documentElement.outerHTML;
   }catch(e){ console.warn('print doc build failed', e); return null; }
 }
+// 문서가 어떤 종류의 슬라이드 덱인지 판별
+// 'deck'(1920×1080 무대) · 'reveal' · 'slides'(스크롤형 .slide 문서) · null(일반 문서)
+function edPrintKind(){
+  if (isDeckFile) return 'deck';
+  if (isRevealFile) return 'reveal';
+  try { if (frame.contentDocument.querySelectorAll('.slide').length >= 2) return 'slides'; } catch(e){}
+  return null;
+}
 function edExportPDF(){
   var m=document.getElementById('edExportMenu'); if(m) m.classList.remove('show');
   if(!currentFile){ alert('먼저 HTML 파일을 열어주세요.'); return; }
   var html = getEditedHTML();
-  var printable = (isDeckFile || isRevealFile) ? edBuildPrintDoc(html) : null;
+  var kind = edPrintKind();
+  var printable = kind ? edBuildPrintDoc(html, kind) : null;
   var w = window.open('', '_blank');
   if(!w){ alert('팝업이 차단되었습니다. 팝업을 허용한 뒤 다시 시도하세요.'); return; }
   w.document.open(); w.document.write(printable || html); w.document.close();
   try{ w.document.title = currentFile.replace(/\.html?$/i,''); }catch(_){}
   if(!printable){ setTimeout(function(){ try{ w.focus(); w.print(); }catch(_){} }, 700); }
+  var n = totalSlides || (kind === 'slides' ? frame.contentDocument.querySelectorAll('.slide').length : '');
   showStatus(printable
-    ? 'PDF 내보내기: 슬라이드 전체 ' + (totalSlides || '') + '장 — 인쇄 창에서 "PDF로 저장"을 선택하세요'
+    ? 'PDF 내보내기: 슬라이드 전체 ' + n + '장 — 인쇄 창에서 대상 "PDF로 저장", 여백 "없음", 배율 100%'
     : 'PDF 내보내기: 인쇄 창에서 "PDF로 저장"을 선택하세요');
+}
+
+// ===== PDF 자동 변환(인쇄 대화상자 없이 바로 저장) =====
+// 각 슬라이드를 html2canvas 로 그대로 찍어 jsPDF 페이지에 담는다.
+// 브라우저·인쇄창 설정과 무관하게 "슬라이드 1장 = PDF 1페이지"가 보장된다.
+var edJsPdfPromise = null;
+function edLoadJsPdf(){
+  if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve();
+  if (edJsPdfPromise) return edJsPdfPromise;
+  edJsPdfPromise = new Promise(function(res, rej){
+    var s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.onload = res;
+    s.onerror = function(){ edJsPdfPromise = null; rej(new Error('jsPDF 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.')); };
+    document.head.appendChild(s);
+  });
+  return edJsPdfPromise;
+}
+
+async function edBuildRasterPdf(onProgress){
+  await edLoadJsPdf();
+  if (typeof html2canvas === 'undefined') throw new Error('html2canvas를 불러오지 못했습니다.');
+  var doc = frame.contentDocument;
+  var kind = edPrintKind();
+  var slides = (kind === 'deck' || kind === 'reveal') ? slideElements.slice()
+             : kind === 'slides' ? Array.from(doc.querySelectorAll('.slide'))
+             : [];
+  if (!slides.length) throw new Error('슬라이드를 찾지 못했습니다. 일반 문서는 [인쇄 → PDF 저장] 방식을 사용하세요.');
+  edClearHandles();
+  try{ removeGuides(doc); }catch(_){}
+  // 캡처 준비: 스크롤 등장 애니메이션 요소를 모두 보이게
+  var prep = doc.createElement('style');
+  prep.id = 'editor-raster-styles';
+  prep.textContent = '*{animation:none!important;transition:none!important}' +
+    '.animate,.fragment,.aos-init,[data-aos]{opacity:1!important;visibility:visible!important;transform:none!important}';
+  doc.head.appendChild(prep);
+  var wasCurrent = currentSlide;
+  var pdf = null;
+  try {
+    var jsPDF = window.jspdf.jsPDF;
+    for (var i = 0; i < slides.length; i++) {
+      if (onProgress) onProgress(i + 1, slides.length);
+      if (kind === 'deck') slides.forEach(function(s, k){ s.classList.toggle('__ed_current', k === i); });
+      if (kind === 'reveal') { try { slideGoTo(i); } catch(e){} }
+      await new Promise(function(r){ setTimeout(r, 60); }); // 레이아웃 정착
+      var canvas = await html2canvas(slides[i], { backgroundColor:'#ffffff', useCORS:true, scale:2, logging:false });
+      var wpt = canvas.width / 2 * 0.75, hpt = canvas.height / 2 * 0.75; // css px → pt
+      var orient = wpt >= hpt ? 'landscape' : 'portrait';
+      if (!pdf) pdf = new jsPDF({ orientation: orient, unit: 'pt', format: [wpt, hpt] });
+      else pdf.addPage([wpt, hpt], orient);
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, wpt, hpt);
+    }
+  } finally {
+    try { prep.remove(); } catch(e){}
+    if (kind === 'deck') slides.forEach(function(s, k){ s.classList.toggle('__ed_current', k === wasCurrent); });
+    if (kind === 'reveal') { try { slideGoTo(wasCurrent); } catch(e){} }
+    edRenderHandles();
+  }
+  return pdf;
+}
+
+async function edExportPDFAuto(){
+  var m=document.getElementById('edExportMenu'); if(m) m.classList.remove('show');
+  if(!currentFile){ alert('먼저 HTML 파일을 열어주세요.'); return; }
+  try {
+    showStatus('PDF 생성 준비 중…');
+    var pdf = await edBuildRasterPdf(function(i, n){ showStatus('PDF 생성 중: 슬라이드 ' + i + ' / ' + n); });
+    pdf.save((currentFile ? currentFile.replace(/\.html?$/i, '') : 'slides') + '.pdf');
+    showStatus('PDF 저장 완료: 슬라이드 ' + pdf.internal.getNumberOfPages() + '장 = ' + pdf.internal.getNumberOfPages() + '페이지');
+  } catch(err) {
+    alert('PDF 자동 생성에 실패했습니다.\n\n' + (err && err.message ? err.message : err));
+    showStatus('PDF 생성 실패');
+  }
 }
 function edExportPNG(){
   var m=document.getElementById('edExportMenu'); if(m) m.classList.remove('show');
