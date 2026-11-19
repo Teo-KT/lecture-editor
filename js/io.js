@@ -7,6 +7,7 @@
   LE.file = null;
   LE.fileKey = function (m) {
     if (m.kind === 'drive' && m.drive) return 'drive:' + m.drive.id;
+    if (m.kind === 'host' && m.slug) return 'host:' + m.slug;
     if (m.kind === 'url') return 'url:' + m.url;
     if (m.kind === 'local') return 'local:' + m.name + ':' + (m.size || 0);
     return (m.kind || 'new') + ':' + (m.name || '') + ':' + Date.now();
@@ -72,6 +73,7 @@
       var f = LE.file;
       if (!f) return;
       if (f.kind === 'drive') return LE.drive.save();
+      if (f.kind === 'host' && LE.host && LE.host.on) return LE.host.save();
       if (f.handle && f.handle.createWritable) {
         try { await writeHandle(f.handle, LE.src.html()); LE.app.markSaved('저장했습니다 · ' + f.name); return; }
         catch (e) { if (e && e.name === 'AbortError') return; LE.toast('원래 파일에 쓰지 못했습니다 (' + e.message + '). 저장할 곳을 다시 골라 주세요.', 'warn'); }
@@ -179,7 +181,12 @@
       sc2.textContent = "window.addEventListener('load',function(){setTimeout(function(){try{window.focus();window.print();}catch(e){}},600);});";
       doc.body.appendChild(sc2);
       var out = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
-      return out.replace(/ data-ed-id="[^"]*"/g, '');
+      out = out.replace(/ data-ed-id="[^"]*"/g, '');
+      // relative files: connected folder / host media as data URLs, otherwise resolve against the document's own address
+      var rw = LE.assets.rewriter();
+      if (rw) out = rw(out);
+      else if (LE.file && LE.file.base) out = out.replace(/<head\b[^>]*>/i, function (t) { return t + '<base href="' + LE.esc(LE.file.base) + '">'; });
+      return out;
     },
     print: async function () {
       await this.flush();
@@ -309,9 +316,9 @@
     cache: [],
     add: function (f) {
       if (!f || f.kind === 'new') return;
-      var v = { name: f.name, kind: f.kind, time: Date.now(), handle: f.handle || null, driveId: f.drive ? f.drive.id : null, url: f.url || null, key: f.key };
+      var v = { name: f.name, kind: f.kind, time: Date.now(), handle: f.handle || null, driveId: f.drive ? f.drive.id : null, url: f.url || null, slug: f.slug || null, key: f.key };
       var self = this;
-      LE.idb.put('recent', f.kind + ':' + (f.drive ? f.drive.id : f.url || f.name), v).then(function () { return self.load(); }).then(function (list) {
+      LE.idb.put('recent', f.kind + ':' + (f.drive ? f.drive.id : f.slug || f.url || f.name), v).then(function () { return self.load(); }).then(function (list) {
         list.slice(12).forEach(function (x) { LE.idb.del('recent', x.k); });
       });
     },
@@ -326,12 +333,13 @@
     menuItems: function () {
       if (!this.cache.length) return [{ label: '(최근 파일 없음)', disabled: true }];
       var self = this;
-      return this.cache.map(function (r) { return { label: r.name, icon: r.kind === 'drive' ? 'cloud' : r.kind === 'url' ? 'globe' : 'file-text', key: LE.timeLabel(r.time), run: function () { self.open(r); } }; })
+      return this.cache.map(function (r) { return { label: r.name, icon: r.kind === 'drive' ? 'cloud' : r.kind === 'url' ? 'globe' : r.kind === 'host' ? 'slides' : 'file-text', key: LE.timeLabel(r.time), run: function () { self.open(r); } }; })
         .concat(['-', { label: '목록 지우기', icon: 'trash', run: function () { self.cache.forEach(function (r) { LE.idb.del('recent', r.k); }); self.cache = []; LE.app.renderWelcome(); } }]);
     },
     open: async function (r) {
       try {
         if (r.kind === 'drive' && r.driveId) return LE.drive.openById(r.driveId);
+        if (r.kind === 'host' && r.slug && LE.host && LE.host.on) return LE.host.open(r.slug);
         if (r.kind === 'url' && r.url) return IO.openUrl(r.url);
         if (r.handle) {
           if (r.handle.queryPermission && (await r.handle.queryPermission({ mode: 'read' })) !== 'granted') {

@@ -290,6 +290,13 @@ textarea.notes { font-size: 12.5px; }
 .wl-recent-list { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow: auto; }
 .wl-recent { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 8px; height: 36px; padding: 0 10px; border: 0; border-radius: var(--r); background: none; text-align: left; }
 .wl-recent:hover { background: var(--hover); }
+/* host deck picker (테오 슬라이드 등 편집기를 띄운 서버의 덱 목록) */
+.host-list { display: flex; flex-direction: column; gap: 2px; max-height: min(60vh, 520px); overflow: auto; margin-top: 10px; }
+.host-item { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 10px; min-height: 40px; padding: 6px 10px; border: 0; border-radius: var(--r); background: none; text-align: left; color: var(--text); cursor: pointer; }
+.host-item:hover, .host-item:focus-visible { background: var(--hover); outline: none; }
+.host-item .hi-ic { color: var(--accent); display: inline-flex; }
+.host-item .hi-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.host-item .hi-meta { color: var(--text-3); font-size: 12px; white-space: nowrap; }
 .wl-r-ic { display: grid; color: var(--text-3); }
 .wl-r-ic .ic { width: 16px; height: 16px; }
 .wl-r-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }

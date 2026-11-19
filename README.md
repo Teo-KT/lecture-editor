@@ -1,4 +1,4 @@
-# HTML 슬라이드 편집기 v4.0
+# HTML 슬라이드 편집기 v4.1
 
 HTML로 만든 강의 슬라이드와 문서를 브라우저에서 바로 고치는 편집기입니다. 서버 없이 GitHub Pages에서 돌아가고, 파일은 사용자의 컴퓨터(또는 본인 구글 드라이브)와 브라우저 사이에서만 오갑니다.
 
@@ -14,7 +14,7 @@ v4는 구조를 새로 짰습니다.
 - 격리된 편집 화면: 덱은 `sandbox="allow-scripts"` 프레임(불투명 출처)에서 실행됩니다. 덱 스크립트는 편집기 화면이나 드라이브 토큰에 접근할 수 없고, 편집기와는 매번 새로 만드는 확인값을 붙인 메시지로만 대화합니다.
 - 입력 가로채기: 편집 모드에서는 편집기가 클릭·키·휠 입력을 덱보다 먼저 받아 덱의 넘기기·편집 단축키가 동작하지 않게 막습니다. 덱의 원래 동작을 확인하고 싶으면 도구모음의 [상호작용] 모드나 미리보기를 쓰면 됩니다.
 - 실행 환경 보정: 불투명 출처에서 오류를 내는 localStorage·sessionStorage·쿠키·history API를 안전한 대체물로 바꾸고, alert·confirm·print와 자동 재생은 막습니다. 덱 스크립트가 시작하다 멈추는 일이 줄어듭니다.
-- 슬라이드 인식: reveal.js, Marp, impress.js, Swiper, Shower, WebSlides, deck.js, 고정 무대(`#stage`·`#deck`)형 1920×1080 덱, `section.slide`·`.slide`·`[data-slide]`·`.page`형 덱, 스크롤형 덱을 자동으로 알아보고 한 번에 한 장씩 보여 줍니다. 슬라이드가 스크립트로만 만들어지는 덱은 알림을 띄우고 [정적 슬라이드로 변환]을 제안합니다. 슬라이드가 없는 일반 문서는 문서 모드로 엽니다.
+- 슬라이드 인식: reveal.js, Marp, impress.js, Swiper, Shower, WebSlides, deck.js, 고정 무대(`#stage`·`#deck`)형 1920×1080 덱, `section.slide`·`.slide`·`[data-slide]`·`.page`형 덱, 스크롤형 덱을 자동으로 알아보고 한 번에 한 장씩 보여 줍니다. 슬라이드가 스크립트로만 만들어지는 덱은 알림을 띄우고 [정적 슬라이드로 변환]을 제안합니다. 슬라이드가 없는 일반 문서는 문서 모드로 엽니다. 꾸밈 없는 `<section>`만 있는 문서는 페이지가 그 섹션에 맞춰 스크롤되거나(scroll-snap), 섹션마다 화면 한 장 높이이고 섹션 밖에 표지·제목·본문이 없을 때만 슬라이드로 봅니다(v4.1.1). 그렇지 않으면 섹션이 여러 개여도 문서 하나로 엽니다.
 
 ## 기능
 
@@ -72,12 +72,32 @@ js/                 스크립트(공용 이름공간 window.LE, 모듈 번들러
   io.js             열기·저장·내보내기·임시 저장
   drive.js          구글 드라이브
   present.js        미리보기
+  host.js           편집기를 띄운 서버와 잇기(아래 '다른 서버에 붙이기')
   app.js            시작과 연결
 drive-config.js     드라이브 공개 식별자
 legacy/             이전 편집기 v3(단일 파일)
 ```
 
 main 브랜치 루트를 GitHub Pages로 배포합니다(Settings → Pages → Deploy from a branch → main / root). 위 파일과 폴더를 모두 올리면 됩니다. 브라우저 캐시 때문에 고친 파일이 늦게 반영되면 `index.html`의 `?v=` 값을 올립니다. 외부 라이브러리는 필요할 때만 불러옵니다(PDF는 jsPDF, 썸네일·PNG는 html-to-image, 드라이브는 구글 라이브러리).
+
+## 다른 서버에 붙이기 (v4.1)
+
+편집기를 자기 서버에서 띄우는 곳(예: 발표 덱 서버)은 스크립트보다 먼저 `window.LE_HOST`를 정의해 편집기를 그 서버와 이을 수 있습니다. 이 값이 없으면(GitHub Pages 판) 아무것도 달라지지 않습니다.
+
+```js
+window.LE_HOST = { name: '테오 슬라이드', api: '/api', home: '/', present: '/d/{slug}/', legacy: 'https://teo-kt.github.io/lecture-editor/legacy/' };
+```
+
+이 값이 있으면 첫 화면과 파일 메뉴의 드라이브 항목이 [서버에서 열기]·[서버에 새 덱으로 올리기]·[저장된 판을 발표 화면으로 열기]로 바뀌고, 그 서버에서 연 덱은 저장(⌘S)하면 같은 덱에 저장됩니다. 주소에 `?deck=<슬러그>&slide=<n>`을 붙이면 그 덱의 그 장부터 엽니다. 서버는 로그인한 사용자에게만 다음을 답해야 합니다.
+
+| 요청 | 답 |
+|---|---|
+| `GET {api}/decks` | `[{ slug, title, slides, updated }]` |
+| `GET {api}/decks/<slug>/source` | `{ slug, title, html, rev, base }` (base는 덱 안 `media/…` 같은 상대 경로가 가리킬 주소) |
+| `POST {api}/decks/<slug>/source` | 본문은 HTML, 머리글 `X-Deck: 1`·`X-Rev: <rev>`(덮어쓰기는 `X-Force: 1`). `{ ok, rev }`, 판이 다르면 409 |
+| `POST {api}/upload` | 본문은 HTML, 머리글 `X-Deck: 1`·`X-Filename`·`X-Title`. `{ ok, slug, rev, base }` |
+
+편집 화면은 출처가 없는 샌드박스 틀이라 브라우저가 그 틀에서 이 컴퓨터나 사설망 주소로 가는 요청을 막습니다. 그래서 덱의 `media/` 그림·영상은 편집기 창이 서버에서 받아 편집 화면에만 data URL로 넘기고(파일 하나 40MB, 합계 150MB까지), 저장 파일의 경로는 그대로 둡니다.
 
 ## 구글 드라이브 연동
 

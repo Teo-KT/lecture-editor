@@ -332,6 +332,42 @@ window.LE_BRIDGE = function (CFG) {
     vis.forEach(function (el) { if (el.offsetWidth >= vw * frac && el.offsetHeight >= vh * frac) ok++; });
     return ok / vis.length >= 0.7;
   }
+  /* Bare <section>s are the usual structure of long documents too, so they count as a scroll deck only when
+     they behave like slides: the page snaps to them, or each one is about one screen tall and no real content
+     (cover, headings, paragraphs) sits outside them. Fixed or sticky bars (deck controls, a table of contents) are ignored. */
+  function snapDeck(list) {
+    var p = list[0] && list[0].parentElement, boxes = [D.documentElement, D.body];
+    if (p && p !== D.body && p !== D.documentElement) boxes.push(p);
+    var snapType = boxes.some(function (el) { var t = cs(el).scrollSnapType || ''; return t && t !== 'none' && !/^x\b/.test(t); });
+    if (snapType) return true;
+    var aligned = list.filter(function (el) { var a = cs(el).scrollSnapAlign || ''; return a && a !== 'none'; }).length;
+    return aligned >= list.length * 0.7;
+  }
+  function screenSized(list) {
+    var vis = list.filter(function (el) { return el.offsetWidth > 0 && el.offsetHeight > 0; });
+    if (!vis.length) return true;
+    var vw = W.innerWidth, vh = W.innerHeight, ok = 0;
+    vis.forEach(function (el) { var h = el.offsetHeight; if (el.offsetWidth >= vw * 0.85 && h >= vh * 0.85 && h <= vh * 1.35) ok++; });
+    return ok / vis.length >= 0.7;
+  }
+  function contentOutside(list) {
+    var tw = D.createTreeWalker(D.body, 4 /* SHOW_TEXT */, null), node, n = 0, seen = 0;
+    while ((node = tw.nextNode()) && seen++ < 4000) {
+      var t = node.nodeValue.replace(/\s+/g, ' ').trim();
+      if (!t) continue;
+      var p = node.parentElement;
+      if (!p || p.closest('script,style,noscript,template,button,select,label')) continue;
+      if (list.some(function (s) { return s.contains(p); })) continue;
+      if (!p.offsetWidth && !p.offsetHeight) continue;
+      var bar = false;
+      for (var a = p; a && a !== D.body; a = a.parentElement) { var ps = cs(a).position; if (ps === 'fixed' || ps === 'sticky') { bar = true; break; } }
+      if (bar) continue;
+      if (p.closest('h1,h2,h3,p,li,blockquote,table')) return true;
+      n += t.length;
+      if (n > 160) return true;
+    }
+    return false;
+  }
   function num(v, d) { var n = parseFloat(v); return isFinite(n) && String(v).indexOf('%') < 0 ? n : d; }
   function detect() {
     var Rv = W.Reveal, generated = false, genList = null;
@@ -354,7 +390,7 @@ window.LE_BRIDGE = function (CFG) {
       var can = outermost(all.filter(isCanon));
       if (can.length < c[2]) { if (!generated && outermost(all).length >= c[2]) { generated = true; genList = outermost(all); } continue; }
       if (c[0] === 'pages' && !bigEnough(can, 0.45)) continue;
-      if (c[0] === 'sections' && !bigEnough(can, 0.85)) continue;
+      if (c[0] === 'sections' && !(snapDeck(can) || (screenSized(can) && !contentOutside(can)))) continue;
       if ((c[0] === 'slides') && !bigEnough(can, 0.3)) continue;
       var res = { kind: c[0], slides: can, sel: c[1] };
       if (c[0] === 'marp') {

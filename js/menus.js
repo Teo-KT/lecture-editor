@@ -23,6 +23,7 @@
       if (it === '-' || it.header) return it;
       if (it.cmd) {
         var d = LE.cmd.get(it.cmd) || {};
+        if (d.hidden && d.hidden()) return null;
         return { label: it.label || d.label, icon: it.icon || d.icon, key: LE.cmd.keyLabel(it.cmd) || (d.keyHint ? labelOf(d.keyHint) : ''), disabled: !LE.cmd.can(it.cmd), checked: d.checked ? LE.cmd.on(it.cmd) : undefined,
           run: function () { LE.cmd.run(it.cmd, it.arg); } };
       }
@@ -31,9 +32,10 @@
     build: function (items, level) {
       var el = h('div', { class: 'menu', role: 'menu' });
       var self = this;
-      items.forEach(function (raw) {
-        var it = self.resolve(raw);
-        if (!it) return;
+      // drop hidden commands, then separators left at the edges or doubled
+      items = items.map(function (raw) { return self.resolve(raw); }).filter(Boolean)
+        .filter(function (it, i, a) { return it !== '-' || (i > 0 && i < a.length - 1 && a[i - 1] !== '-'); });
+      items.forEach(function (it) {
         if (it === '-') { el.appendChild(h('div', { class: 'menu-sep' })); return; }
         if (it.header) { el.appendChild(h('div', { class: 'menu-head', text: it.header })); return; }
         var row = h('div', { class: 'menu-item' + (it.disabled ? ' disabled' : '') + (it.sub ? ' has-sub' : ''), role: 'menuitem', tabindex: '-1' },
@@ -120,9 +122,9 @@
   LE.menus = {
     bar: [
       { id: 'file', label: '파일', items: function () {
-        return [{ cmd: 'file.new' }, { cmd: 'file.open' }, { cmd: 'file.openDrive' }, { cmd: 'file.openUrl' }, { label: '최근 파일', icon: 'clock', sub: LE.recent.menuItems() },
+        return [{ cmd: 'file.new' }, { cmd: 'file.open' }, { cmd: 'host.open' }, { cmd: 'file.openDrive' }, { cmd: 'file.openUrl' }, { label: '최근 파일', icon: 'clock', sub: LE.recent.menuItems() },
           '-', { cmd: 'file.save' }, { cmd: 'file.saveAs' }, { cmd: 'file.download' },
-          '-', { cmd: 'file.saveDrive' }, { cmd: 'file.saveDriveAs' },
+          '-', { cmd: 'host.upload' }, { cmd: 'host.present' }, { cmd: 'file.saveDrive' }, { cmd: 'file.saveDriveAs' },
           '-', { label: '내보내기', icon: 'download', sub: [{ cmd: 'file.pdf' }, { cmd: 'file.print' }, { cmd: 'file.png' }] },
           { cmd: 'file.static' }, { cmd: 'file.folder' },
           '-', { cmd: 'file.driveOff' }];

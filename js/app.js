@@ -22,6 +22,7 @@
       this.renderWelcome();
       this.showDoc(false);
       LE.toolbar.refresh();
+      if (LE.host && LE.host.on) LE.host.deepLink();
       LE.inspector.render(true);
       LE.recent.load().then(function () { A.renderWelcome(); });
       var q = new URLSearchParams(location.search);
@@ -178,10 +179,11 @@
       this.forceDirty = !!o.dirty; this.draftAt = 0; this.mode = 'edit';
       LE.sel = { ids: [], count: 0, info: null }; LE.text = { editing: false }; this._textSig = '';
       LE.slides.reset(); LE.assets.reset(); this.hideBanner();
+      if (o.assets) LE.assets.map = o.assets;   // view-only replacements for relative files (host media, connected folder)
       LE.inspector.slideInfo = null; LE.layers.tree = null;
       this.showDoc(true);
       this.setTitle(); this.updateSaveState();
-      await LE.view.render({ start: 0 });
+      await LE.view.render({ start: o.start || 0 });
       LE.recent.add(LE.file);
       if (LE.src.legacy) LE.toast('이전 편집기가 남긴 표시 ' + LE.src.legacy + '개를 정리했습니다. 저장하면 파일에도 반영됩니다.', 'info', 5000);
       await LE.drafts.check(html);
@@ -247,8 +249,8 @@
       var t = document.getElementById('docTitle');
       if (!t) return;
       var f = LE.file;
-      t.innerHTML = f ? LE.icon(f.kind === 'drive' ? 'cloud' : f.kind === 'url' ? 'globe' : f.kind === 'new' ? 'sparkle' : 'file-text') + '<span>' + LE.esc(f.name) + '</span>' : '';
-      t.title = f ? (f.kind === 'drive' ? '구글 드라이브 파일 · 저장하면 같은 파일에 덮어씁니다' : f.kind === 'url' ? f.url : f.kind === 'local' ? (f.handle ? '내 컴퓨터 파일 · 저장하면 같은 파일에 덮어씁니다' : '내 컴퓨터 파일 · 저장하면 새로 내려받습니다') : '저장하지 않은 새 문서') + ' (클릭해서 이름 바꾸기)' : '';
+      t.innerHTML = f ? LE.icon(f.kind === 'drive' ? 'cloud' : f.kind === 'url' ? 'globe' : f.kind === 'host' ? 'slides' : f.kind === 'new' ? 'sparkle' : 'file-text') + '<span>' + LE.esc(f.kind === 'host' && f.title ? f.title : f.name) + '</span>' : '';
+      t.title = f ? (f.kind === 'host' ? (LE.host ? LE.host.name : '서버') + ' 덱 · 저장하면 같은 덱에 새 판으로 저장합니다(이전 판은 서버에 남음)' : f.kind === 'drive' ? '구글 드라이브 파일 · 저장하면 같은 파일에 덮어씁니다' : f.kind === 'url' ? f.url : f.kind === 'local' ? (f.handle ? '내 컴퓨터 파일 · 저장하면 같은 파일에 덮어씁니다' : '내 컴퓨터 파일 · 저장하면 새로 내려받습니다') : '저장하지 않은 새 문서') + ' (클릭해서 이름 바꾸기)' : '';
     },
     rename: async function () {
       if (!LE.file) return;
@@ -345,9 +347,9 @@
       if (!list.length) { host.appendChild(h('div', { class: 'wl-empty', text: '최근에 연 파일이 여기에 표시됩니다.' })); return; }
       list.slice(0, 8).forEach(function (r) {
         host.appendChild(h('button', { class: 'wl-recent', onclick: function () { LE.recent.open(r); } },
-          h('span', { class: 'wl-r-ic', html: LE.icon(r.kind === 'drive' ? 'cloud' : r.kind === 'url' ? 'globe' : 'file-text') }),
-          h('span', { class: 'wl-r-name', text: r.name }),
-          h('span', { class: 'wl-r-meta', text: (r.kind === 'drive' ? '드라이브' : r.kind === 'url' ? '웹 주소' : '내 컴퓨터') + ' · ' + LE.timeLabel(r.time) })));
+          h('span', { class: 'wl-r-ic', html: LE.icon(r.kind === 'drive' ? 'cloud' : r.kind === 'url' ? 'globe' : r.kind === 'host' ? 'slides' : 'file-text') }),
+          h('span', { class: 'wl-r-name', text: r.kind === 'host' ? r.name.replace(/\.html$/, '') : r.name }),
+          h('span', { class: 'wl-r-meta', text: (r.kind === 'drive' ? '드라이브' : r.kind === 'url' ? '웹 주소' : r.kind === 'host' ? (LE.host ? LE.host.name : '서버') : '내 컴퓨터') + ' · ' + LE.timeLabel(r.time) })));
       });
     },
 

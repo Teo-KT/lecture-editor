@@ -7,6 +7,8 @@
   function hasSel() { return hasDoc() && (LE.sel.ids || []).length > 0; }
   function isDeck() { return hasDoc() && !LE.view.docMode; }
   function selNotSlide() { return hasSel() && !(LE.sel.info && LE.sel.info.isSlide); }
+  function hosted() { return !!(LE.host && LE.host.on); }       // served by a host server (테오 슬라이드): Drive is replaced by the host
+  function notHosted() { return !hosted(); }
 
   var C = LE.cmd = {
     reg: Object.create(null),
@@ -37,19 +39,23 @@
   /* file */
   add('file.new', { label: '새 슬라이드 덱', icon: 'file-plus', run: function () { return LE.io.newDeck(); } });
   add('file.open', { label: '열기…', icon: 'folder-open', key: 'mod+o', run: function () { return LE.io.open(); } });
-  add('file.openDrive', { label: '구글 드라이브에서 열기…', icon: 'cloud', run: function () { return LE.drive.open(); } });
+  add('host.open', { label: '서버에서 열기…', icon: 'slides', hidden: notHosted, run: function () { return LE.host.pick().then(function (s) { if (s) return LE.host.open(s); }); } });
+  add('host.upload', { label: '서버에 새 덱으로 올리기…', icon: 'upload', hidden: notHosted, enabled: hasDoc, run: function () { return LE.host.upload(); } });
+  add('host.present', { label: '저장된 판을 발표 화면으로 열기', icon: 'present', hidden: notHosted, enabled: function () { return hosted() && LE.host.isHostDoc(); }, run: function () { LE.host.present(); } });
+  add('host.home', { label: '서버 목록으로', icon: 'external', hidden: notHosted, run: function () { LE.host.home(); } });
+  add('file.openDrive', { label: '구글 드라이브에서 열기…', icon: 'cloud', hidden: hosted, run: function () { return LE.drive.open(); } });
   add('file.openUrl', { label: '주소(URL)로 열기…', icon: 'globe', run: function () { return LE.io.openUrlDialog(); } });
   add('file.save', { label: '저장', icon: 'save', key: 'mod+s', enabled: hasDoc, run: function () { return LE.io.save(); } });
   add('file.saveAs', { label: '다른 이름으로 저장…', icon: 'save', key: 'mod+shift+s', enabled: hasDoc, run: function () { return LE.io.saveAs(); } });
   add('file.download', { label: 'HTML 파일로 내려받기', icon: 'download', enabled: hasDoc, run: function () { return LE.io.download(); } });
-  add('file.saveDrive', { label: '드라이브의 같은 파일에 저장', icon: 'cloud', enabled: function () { return hasDoc() && LE.file && LE.file.kind === 'drive'; }, run: function () { return LE.drive.save(); } });
-  add('file.saveDriveAs', { label: '드라이브에 새 파일로 저장…', icon: 'cloud-up', enabled: hasDoc, run: function () { return LE.drive.saveAs(); } });
+  add('file.saveDrive', { hidden: hosted, label: '드라이브의 같은 파일에 저장', icon: 'cloud', enabled: function () { return hasDoc() && LE.file && LE.file.kind === 'drive'; }, run: function () { return LE.drive.save(); } });
+  add('file.saveDriveAs', { hidden: hosted, label: '드라이브에 새 파일로 저장…', icon: 'cloud-up', enabled: hasDoc, run: function () { return LE.drive.saveAs(); } });
   add('file.pdf', { label: 'PDF로 내보내기', icon: 'file-text', enabled: hasDoc, run: function () { return LE.io.exportPdf(); } });
   add('file.print', { label: '인쇄 / PDF 저장(인쇄 창)…', icon: 'print', key: 'mod+p', enabled: hasDoc, run: function () { return LE.io.print(); } });
   add('file.png', { label: '현재 화면을 PNG로', icon: 'image', enabled: hasDoc, run: function () { return LE.io.exportPng(); } });
   add('file.static', { label: '정적 슬라이드로 변환', icon: 'wand', enabled: function () { return isDeck() || !!(hasDoc() && LE.view.info && LE.view.info.generated); }, run: function () { return LE.io.toStatic(); } });
   add('file.folder', { label: '그림 폴더 연결…', icon: 'folder', enabled: hasDoc, run: function () { return LE.assets.connect(); } });
-  add('file.driveOff', { label: '구글 드라이브 연결 해제', icon: 'cloud', run: function () { return LE.drive.disconnect(); } });
+  add('file.driveOff', { hidden: hosted, label: '구글 드라이브 연결 해제', icon: 'cloud', run: function () { return LE.drive.disconnect(); } });
 
   /* edit */
   add('edit.undo', { label: '실행 취소', icon: 'undo', key: 'mod+z', enabled: function () { return hasDoc() && LE.hist.canUndo(); }, run: function () { LE.ops.undo(); } });
@@ -159,7 +165,7 @@
   add('help.keys', { label: '단축키', icon: 'keyboard', key: 'mod+/', run: function () { LE.app.showShortcuts(); } });
   add('help.compat', { label: '호환성 정보', icon: 'info', enabled: hasDoc, run: function () { LE.app.showCompat(); } });
   add('help.guide', { label: '사용 안내', icon: 'help', run: function () { LE.app.showGuide(); } });
-  add('help.legacy', { label: '이전 편집기(v3) 열기', icon: 'external', run: function () { window.open('legacy/', '_blank', 'noopener'); } });
+  add('help.legacy', { label: '이전 편집기(v3) 열기', icon: 'external', run: function () { window.open(hosted() && LE.host.legacy ? LE.host.legacy : 'legacy/', '_blank', 'noopener'); } });
   add('help.about', { label: '이 편집기에 대하여', icon: 'logo', run: function () { LE.app.showAbout(); } });
 
   /* ------------------------------------------------------------------ *
